@@ -1,0 +1,33 @@
+---
+title: Quickstart
+description: "Sign in and read your first event in under a minute."
+---
+
+<Steps>
+  <Step title="Sign in">
+    ```bash
+    curl -X POST https://your-deployment/api/v1/auth/request-code \
+      -H "Content-Type: application/json" \
+      -d '{"email": "you@example.com"}'
+    # {"message": "Code generated (email delivery disabled).", "dev_code": "482913"}
+
+    curl -X POST https://your-deployment/api/v1/auth/verify \
+      -H "Content-Type: application/json" -c cookies.txt \
+      -d '{"email": "you@example.com", "code": "482913"}'
+    ```
+  </Step>
+  <Step title="List your events">
+    ```bash
+    curl https://your-deployment/api/v1/events -b cookies.txt
+    ```
+  </Step>
+  <Step title="Read the public program — no auth at all">
+    Every event with a published agenda exposes a read-only program feed, which is what the five embeddable widgets (sessions, speakers, agenda, itinerary, gallery) are built on:
+    ```bash
+    curl https://your-deployment/api/v1/public/events/{event-slug}/program
+    ```
+    Returns approved sessions, their speakers, tracks, formats, and rooms — one consistent payload so every embedded widget shows identical data.
+  </Step>
+</Steps>
+
+From here, the [API Reference](/api-reference) covers every endpoint — submission forms, evaluation plans, agenda scheduling, file uploads, communications, all generated directly from the deployed server's own schema.

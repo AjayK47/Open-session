@@ -1,0 +1,270 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+/* Tailwind v4 auto-detects sources relative to this file's project only, so the
+   shared UI package is invisible to it. Without this, any utility used *only*
+   inside packages/ui silently generates no CSS — primitives then render with
+   missing padding/sizing while classes that happen to also appear in app code
+   keep working, which makes the breakage look random. */
+@source "../../../../packages/ui/src";
+@import "@fontsource/geist-sans/400.css";
+@import "@fontsource/geist-sans/500.css";
+@import "@fontsource/geist-sans/600.css";
+@import "@fontsource/geist-mono/400.css";
+@import "@fontsource/geist-mono/500.css";
+
+/* Dark is the default surface; `.light` opts out. The variant therefore has to
+   match "root that is not .light" rather than an explicit .dark class. */
+@custom-variant dark (&:where(:root:not(.light), :root:not(.light) *));
+
+/*
+ * Open Session design tokens.
+ *
+ * Colors are raw oklch values (not hsl channel triplets), so anything reading a
+ * token directly in JS/SVG uses `var(--token)` — never `hsl(var(--token))`.
+ *
+ * Surface model, light → dark: sidebar (recessed) < background < card (raised).
+ * The sidebar sits *behind* the content plane, so the app reads as a document on
+ * a desk rather than a set of equal-weight boxes divided by hairlines.
+ */
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-border: var(--sidebar-border);
+
+  --color-track-1: var(--track-1);
+  --color-track-2: var(--track-2);
+  --color-track-3: var(--track-3);
+  --color-track-4: var(--track-4);
+  --color-track-5: var(--track-5);
+  --color-track-6: var(--track-6);
+  --color-track-7: var(--track-7);
+  --color-track-8: var(--track-8);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 10px);
+
+  --font-sans: "Geist Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, "SFMono-Regular", monospace;
+
+  /* Elevation. On a near-black canvas a drop shadow is nearly invisible, so
+     depth comes mostly from the surface lightness step; these stay subtle and
+     exist to separate overlays (menus, popovers) from the plane beneath. */
+  --shadow-xs: 0 1px 2px 0 var(--shadow-ink);
+  --shadow-sm: 0 1px 2px -1px var(--shadow-ink), 0 1px 3px 0 var(--shadow-ink);
+  --shadow-md: 0 2px 4px -2px var(--shadow-ink), 0 4px 10px -2px var(--shadow-ink);
+  --shadow-lg: 0 4px 6px -4px var(--shadow-ink), 0 14px 24px -4px var(--shadow-ink);
+  --shadow-xl: 0 8px 10px -6px var(--shadow-ink), 0 28px 48px -8px var(--shadow-ink);
+}
+
+/* ── Dark (default) ─────────────────────────────────────────────────────────
+   Near-black canvas, panels lifted by lightness rather than by borders, and
+   saturated hues reserved for data and state. Chroma is kept near zero on the
+   greys so the accents stay the only colored thing on screen. */
+:root {
+  --radius: 0.75rem;
+  --shadow-ink: oklch(0 0 0 / 0.44);
+
+  --background: oklch(0.1685 0.0025 286);
+  --foreground: oklch(0.972 0.0015 286);
+
+  --card: oklch(0.2115 0.003 286);
+  --card-foreground: oklch(0.972 0.0015 286);
+  --popover: oklch(0.2375 0.0035 286);
+  --popover-foreground: oklch(0.972 0.0015 286);
+
+  --primary: oklch(0.633 0.191 256);
+  --primary-foreground: oklch(0.145 0.002 286);
+
+  --secondary: oklch(0.2605 0.004 286);
+  --secondary-foreground: oklch(0.945 0.002 286);
+
+  --muted: oklch(0.2545 0.004 286);
+  --muted-foreground: oklch(0.674 0.011 286);
+
+  /* Neutral hover/selected wash — brand tint is applied per-component. */
+  --accent: oklch(0.2765 0.005 286);
+  --accent-foreground: oklch(0.972 0.0015 286);
+
+  --destructive: oklch(0.637 0.208 25.5);
+  --destructive-foreground: oklch(0.145 0.002 286);
+  --success: oklch(0.723 0.174 152);
+  --success-foreground: oklch(0.145 0.002 286);
+  --warning: oklch(0.769 0.157 63.5);
+  --warning-foreground: oklch(0.145 0.002 286);
+
+  --border: oklch(0.2745 0.0045 286);
+  --input: oklch(0.3075 0.005 286);
+  --ring: oklch(0.633 0.191 256);
+
+  --sidebar: oklch(0.1445 0.002 286);
+  --sidebar-foreground: oklch(0.706 0.011 286);
+  --sidebar-accent: oklch(0.2265 0.0035 286);
+  --sidebar-border: oklch(0.2465 0.004 286);
+
+  --track-1: oklch(0.633 0.191 256);
+  --track-2: oklch(0.723 0.174 152);
+  --track-3: oklch(0.769 0.157 63.5);
+  --track-4: oklch(0.637 0.208 25.5);
+  --track-5: oklch(0.68 0.176 305);
+  --track-6: oklch(0.735 0.13 205);
+  --track-7: oklch(0.77 0.16 110);
+  --track-8: oklch(0.68 0.18 350);
+}
+
+/* ── Light ──────────────────────────────────────────────────────────────── */
+.light {
+  --shadow-ink: oklch(0.21 0.006 286 / 0.08);
+
+  --background: oklch(0.9865 0.0013 286);
+  --foreground: oklch(0.171 0.005 286);
+
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.171 0.005 286);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.171 0.005 286);
+
+  --primary: oklch(0.545 0.208 258);
+  --primary-foreground: oklch(1 0 0);
+
+  --secondary: oklch(0.968 0.0015 286);
+  --secondary-foreground: oklch(0.271 0.006 286);
+
+  --muted: oklch(0.968 0.0015 286);
+  --muted-foreground: oklch(0.551 0.014 286);
+
+  --accent: oklch(0.962 0.002 286);
+  --accent-foreground: oklch(0.271 0.006 286);
+
+  --destructive: oklch(0.578 0.223 27.2);
+  --destructive-foreground: oklch(1 0 0);
+  --success: oklch(0.596 0.132 158.5);
+  --success-foreground: oklch(1 0 0);
+  --warning: oklch(0.708 0.161 66.5);
+  --warning-foreground: oklch(0.271 0.006 286);
+
+  --border: oklch(0.918 0.004 286);
+  --input: oklch(0.902 0.005 286);
+  --ring: oklch(0.545 0.208 258);
+
+  --sidebar: oklch(0.9595 0.0028 286);
+  --sidebar-foreground: oklch(0.401 0.008 286);
+  --sidebar-accent: oklch(0.934 0.004 286);
+  --sidebar-border: oklch(0.906 0.004 286);
+
+  --track-1: oklch(0.545 0.208 258);
+  --track-2: oklch(0.6 0.118 184.7);
+  --track-3: oklch(0.708 0.161 66.5);
+  --track-4: oklch(0.606 0.199 5.5);
+  --track-5: oklch(0.588 0.196 305);
+  --track-6: oklch(0.62 0.132 205);
+  --track-7: oklch(0.62 0.135 132);
+  --track-8: oklch(0.645 0.176 350);
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+
+  *:focus {
+    outline: none;
+  }
+
+  *:focus-visible {
+    outline: none;
+  }
+
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+
+  /* Headings carry slightly negative tracking; small UI text does not. Without
+     this every title reads a touch loose and "default browser". */
+  h1,
+  h2,
+  h3,
+  h4 {
+    letter-spacing: -0.011em;
+  }
+
+  /* Numerals in tables, stats, and time columns must not jitter between values. */
+  code,
+  kbd,
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+
+  ::selection {
+    background-color: color-mix(in oklch, var(--primary) 22%, transparent);
+  }
+
+  /* Scrollbars are part of the theme. Left at OS default they render as a wide
+     grey trough that belongs to no design system and makes panes read as
+     foreign embedded frames. Thumb-only, themed, no track. */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  ::-webkit-scrollbar-track,
+  ::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    /* Transparent border + content-box clip insets the thumb so it floats
+       inside the gutter instead of filling it edge to edge. */
+    background-color: var(--border);
+    border: 3px solid transparent;
+    background-clip: content-box;
+    border-radius: 9999px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: color-mix(in oklch, var(--muted-foreground) 55%, transparent);
+  }
+}
+
+@utility scrollbar-subtle {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}

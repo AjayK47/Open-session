@@ -1,0 +1,58 @@
+---
+title: Authentication
+description: "Session cookies for interactive use, API keys for scripts."
+---
+
+There are no passwords anywhere in Open Session. Every human account — organizer, speaker, or reviewer — signs in the same way: email, then a one-time code. What a signed-in user can do depends on their role for a given event, not which door they came through.
+
+## Session cookies (interactive)
+
+This is what the web app itself uses, and it's available to you too.
+
+<Steps>
+  <Step title="Request a code">
+    ```bash
+    curl -X POST https://your-deployment/api/v1/auth/request-code \
+      -H "Content-Type: application/json" \
+      -d '{"email": "you@example.com"}'
+    ```
+    In development (`OPEN_SESSION_EMAIL_ENABLED=false`), the response includes `dev_code` directly so you don't need an inbox. In production this is only ever true when `OPEN_SESSION_EVALUATION_MODE` is explicitly on — see the note below.
+  </Step>
+  <Step title="Verify it">
+    ```bash
+    curl -X POST https://your-deployment/api/v1/auth/verify \
+      -H "Content-Type: application/json" \
+      -c cookies.txt \
+      -d '{"email": "you@example.com", "code": "123456"}'
+    ```
+    The response sets an `httpOnly` session cookie. Reuse `cookies.txt` (`-b cookies.txt`) on subsequent requests.
+  </Step>
+</Steps>
+
+<Warning>
+  A sign-in code is only ever returned in the API response when `OPEN_SESSION_EMAIL_ENABLED=false` **and** either `OPEN_SESSION_ENVIRONMENT=development` or `OPEN_SESSION_EVALUATION_MODE=true`. A normal production deployment with email configured never exposes it — the code only ever reaches the real inbox.
+</Warning>
+
+## API keys (server-to-server)
+
+For scripts, integrations, or anything that shouldn't hold a human session. An organizer (owner/admin role) creates one from **Settings → API** in the web app, or via:
+
+```bash
+curl -X POST https://your-deployment/api/v1/events/{event_id}/api-keys \
+  -H "Content-Type: application/json" \
+  -b cookies.txt \
+  -d '{"name": "CI integration", "scopes": ["sessions:write", "agenda:read"]}'
+```
+
+The key is shown once, at creation. Send it on every request:
+
+```bash
+curl https://your-deployment/api/v1/events/{event_id}/sessions \
+  -H "Authorization: Bearer <your-key>"
+```
+
+Keys are scoped (`events:write`, `sessions:write`, `agenda:read`, and so on) and can be revoked at any time from the same settings page.
+
+## Public endpoints need neither
+
+Everything under `/api/v1/public/...` — the CFP form, the five embeddable widgets — is deliberately open. That's what makes them embeddable on a third-party page in the first place.

@@ -1,0 +1,34 @@
+node_modules/
+dist/
+build/
+.wrangler/
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.env
+.env.*
+!.env.example
+*.sqlite3
+*.db
+# Uploaded file blobs (headshots, slides, supporting docs). User content, and a
+# `git add -A` after any demo run would otherwise sweep them into the repo.
+apps/api/data/files/
+.DS_Store
+coverage/
+
+# Internal planning docs — working notes for building the repo, not part of
+# the deliverable itself.
+BACKEND_PLAN.md
+EVAL_TODO.md
+EVALUATION.md
+frontend_implementation_plan.md
+FRONTEND_PLAN.md
+open_sessionboard_product_plan.md
+
+# The organizer's own grading harness — a clone of a third-party repo used for
+# local testing, not part of this submission. Would also push as a broken
+# submodule reference (it has its own .git) rather than real content.
+evals/

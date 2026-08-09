@@ -1,0 +1,33 @@
+---
+title: Introduction
+description: "The REST API behind Open Session — everything the web app does, you can do too."
+---
+
+Open Session is an open-source alternative to Sessionboard: call-for-speakers forms, submission review, a speaker portal, agenda building with conflict detection, and public event widgets. The web app is a client of this same API — nothing it can do is hidden from you.
+
+## What's here
+
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Sign in and make your first authenticated request in a few lines.
+  </Card>
+  <Card title="Authentication" icon="key" href="/authentication">
+    Two ways in: session cookies (what the web app uses) or API keys (for scripts and integrations).
+  </Card>
+  <Card title="API Reference" icon="code" href="/api-reference">
+    Every endpoint, generated straight from the running server's OpenAPI schema — this reference can never drift from what's actually deployed.
+  </Card>
+</CardGroup>
+
+## The shape of the API
+
+Everything is scoped under one of a few roots:
+
+| Root | Who calls it |
+|---|---|
+| `/api/v1/events/{event_id}/...` | Organizers managing one event — forms, sessions, speakers, evaluations, agenda |
+| `/api/v1/me/...` | The signed-in speaker or reviewer, scoped to their own data |
+| `/api/v1/public/...` | Anonymous — the CFP submission form and the five public widgets (sessions, speakers, agenda, itinerary, gallery). No auth required. |
+| `/api/v1/auth/...` | Sign-in: request a one-time code, verify it, log out |
+
+Public read endpoints (`/api/v1/public/events/{slug}/program` and friends) never require authentication — that's what backs the embeddable widgets. Everything else needs either a session cookie or an API key.

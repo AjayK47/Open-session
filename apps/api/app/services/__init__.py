@@ -1,0 +1,41 @@
+"""Service layer: domain logic that depends on repository interfaces."""
+
+from app.services import (
+    agenda_service,
+    ai_review_service,
+    auth_service,
+    calendar_service,
+    communication_service,
+    evaluation_service,
+    event_service,
+    file_service,
+    form_service,
+    metrics_service,
+    portal_service,
+    program_service,
+    session_service,
+    speaker_service,
+    submission_service,
+    task_service,
+    team_service,
+)
+
+__all__ = [
+    "agenda_service",
+    "ai_review_service",
+    "auth_service",
+    "calendar_service",
+    "communication_service",
+    "event_service",
+    "evaluation_service",
+    "file_service",
+    "form_service",
+    "metrics_service",
+    "portal_service",
+    "program_service",
+    "session_service",
+    "speaker_service",
+    "submission_service",
+    "task_service",
+    "team_service",
+]
