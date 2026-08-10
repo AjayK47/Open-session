@@ -1,6 +1,43 @@
-import { ArrowRight, Github, Megaphone } from "lucide-react";
+import { ArrowRight, CalendarClock, ClipboardCheck, FileText, Github, Megaphone, Share2, UserRound, UsersRound } from "lucide-react";
 import { Link } from "react-router";
 import "./landing.css";
+
+/** Decorative only (aria-hidden) — a scatter of schedule fragments behind the
+ *  headline: time slots, room codes, and track dots, faded toward the text
+ *  so it reads as texture, not content. The motif is Open Session's own (a
+ *  scheduling grid), not a borrowed one. */
+const heroField: { label: string; top: string; left: string; chip?: string }[] = [
+  { label: "09:00", top: "6%", left: "56%" },
+  { label: "R·A", top: "12%", left: "86%" },
+  { label: "+", top: "4%", left: "72%" },
+  { label: "14:30", top: "20%", left: "68%" },
+  { label: "●", top: "27%", left: "91%", chip: "var(--track-2)" },
+  { label: "11:15", top: "34%", left: "80%" },
+  { label: "R·C", top: "42%", left: "62%" },
+  { label: "+", top: "48%", left: "93%" },
+  { label: "○", top: "56%", left: "75%", chip: "var(--track-5)" },
+  { label: "16:00", top: "64%", left: "88%" },
+  { label: "+", top: "16%", left: "60%" },
+  { label: "●", top: "71%", left: "67%", chip: "var(--track-6)" },
+  { label: "R·B", top: "78%", left: "84%" },
+  { label: "10:45", top: "86%", left: "58%" },
+  { label: "○", top: "60%", left: "58%", chip: "var(--track-3)" },
+];
+
+const features = [
+  { icon: FileText, title: "Custom CFP forms", body: "Conditional questions and category routing you configure once, not per submission." },
+  { icon: UserRound, title: "Speaker self-service", body: "Bios, headshots, slides, and travel docs — speakers keep their own profile current." },
+  { icon: ClipboardCheck, title: "Review & scoring", body: "Assign reviewers, score against a rubric, and keep decisions blind until you're ready." },
+  { icon: CalendarClock, title: "Drag-and-drop agenda", body: "Build the schedule across rooms and tracks with clashes flagged as you go." },
+  { icon: Share2, title: "Public widgets", body: "Embed the live agenda, speaker gallery, and itinerary anywhere — no iframe hacks." },
+  { icon: UsersRound, title: "Speaker CRM", body: "One directory of every person you've worked with, reusable across every event you run." },
+];
+
+const steps = [
+  { title: "Open your CFP", body: "Publish a branded submission form with conditional logic and category routing in minutes." },
+  { title: "Review, assign, schedule", body: "Score proposals, assign reviewers, and drag sessions into a conflict-free agenda." },
+  { title: "Publish everywhere", body: "Push the agenda, speakers, and itinerary live as embeddable public pages." },
+];
 
 const programme = [
   {
@@ -74,21 +111,34 @@ export function LandingPage() {
         </header>
 
         <section className="os-hero" aria-labelledby="os-hero-title">
-          <p className="os-status">
-            Open source <span className="os-status__dot" aria-hidden="true" />
-            Self-hosted <span className="os-status__dot" aria-hidden="true" />
-            <span className="os-status__hl">MIT licensed</span>
-          </p>
-          <h1 id="os-hero-title">Run the whole show, not just the form.</h1>
-          <p className="os-hero__lede">
-            Open Session replaces the CFP form, the review spreadsheet, the speaker
-            email thread, and the scheduling doc with one system you run yourself.
-          </p>
-          <div className="os-actions">
-            <Link to="/login" className="os-button">Start using Open Session <ArrowRight /></Link>
-            <a className="os-text-link" href="https://github.com/AjayK47/Open-session" target="_blank" rel="noreferrer">
-              <Github /> View source
-            </a>
+          <div className="os-hero__deco" aria-hidden="true">
+            {heroField.map((item, i) => (
+              <span
+                key={i}
+                className="os-hero__glyph"
+                style={{ top: item.top, left: item.left, ...(item.chip ? { color: item.chip } : {}) } as React.CSSProperties}
+              >
+                {item.label}
+              </span>
+            ))}
+          </div>
+          <div className="os-hero__content">
+            <p className="os-status">
+              Open source <span className="os-status__dot" aria-hidden="true" />
+              Self-hosted <span className="os-status__dot" aria-hidden="true" />
+              <span className="os-status__hl">MIT licensed</span>
+            </p>
+            <h1 id="os-hero-title">Run the whole show, not just the form.</h1>
+            <p className="os-hero__lede">
+              Open Session replaces the CFP form, the review spreadsheet, the speaker
+              email thread, and the scheduling doc with one system you run yourself.
+            </p>
+            <div className="os-actions">
+              <Link to="/login" className="os-button">Start using Open Session <ArrowRight /></Link>
+              <a className="os-text-link" href="https://github.com/AjayK47/Open-session" target="_blank" rel="noreferrer">
+                <Github /> View source
+              </a>
+            </div>
           </div>
         </section>
 
@@ -119,6 +169,34 @@ export function LandingPage() {
               </li>
             ))}
           </ol>
+        </div>
+
+        <div className="os-steps">
+          <FrameTicks />
+          <p className="os-visual__label">How it works</p>
+          <ol className="os-steps__grid">
+            {steps.map((step, i) => (
+              <li key={step.title} className="os-step">
+                <span className="os-step__index">{String(i + 1).padStart(2, "0")}</span>
+                <h3>{step.title}</h3>
+                <p>{step.body}</p>
+              </li>
+            ))}
+          </ol>
+        </div>
+
+        <div className="os-features">
+          <FrameTicks />
+          <p className="os-visual__label">Everything a programme team needs</p>
+          <ul className="os-features__grid">
+            {features.map((feature) => (
+              <li key={feature.title} className="os-feature">
+                <span className="os-feature__icon" aria-hidden="true"><feature.icon /></span>
+                <h3>{feature.title}</h3>
+                <p>{feature.body}</p>
+              </li>
+            ))}
+          </ul>
         </div>
 
         <div className="os-cta">

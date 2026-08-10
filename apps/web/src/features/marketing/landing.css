@@ -188,7 +188,45 @@ body {
 /* ── Hero ────────────────────────────────────────────────────────────── */
 
 .os-hero {
+  position: relative;
   padding: clamp(3rem, 7vw, 5rem) var(--os-gutter) clamp(2.5rem, 5vw, 3.5rem);
+}
+
+/* A scheduling-grid texture behind the headline — graph-paper lines plus a
+ * scatter of time/room/track glyphs (see `heroField`), faded toward the text
+ * with a radial mask so it reads as backdrop, not content. Hidden below the
+ * width where it would just crowd the headline instead. */
+.os-hero__deco {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  mask-image: radial-gradient(60% 78% at 82% 16%, black, transparent 70%);
+  -webkit-mask-image: radial-gradient(60% 78% at 82% 16%, black, transparent 70%);
+}
+
+.os-hero__deco::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  background-image:
+    repeating-linear-gradient(90deg, color-mix(in oklch, var(--foreground) 14%, transparent) 0 1px, transparent 1px 2.75rem),
+    repeating-linear-gradient(0deg, color-mix(in oklch, var(--foreground) 14%, transparent) 0 1px, transparent 1px 2.75rem);
+}
+
+.os-hero__glyph {
+  position: absolute;
+  color: color-mix(in oklch, var(--foreground) 42%, transparent);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.os-hero__content {
+  position: relative;
+  z-index: 1;
 }
 
 .os-status {
@@ -349,6 +387,77 @@ body {
   50% { opacity: 0.3; }
 }
 
+/* ── How it works / Features panels ─────────────────────────────────── */
+
+.os-steps,
+.os-features {
+  position: relative;
+  margin: 0 var(--os-gutter) clamp(2rem, 5vw, 3.5rem);
+  padding: clamp(1.5rem, 3vw, 2.25rem);
+  border: 1px solid var(--border);
+}
+
+.os-steps__grid,
+.os-features__grid {
+  display: grid;
+  gap: 1px;
+  margin: 1.1rem 0 0;
+  padding: 0;
+  list-style: none;
+  background: var(--border);
+  border: 1px solid var(--border);
+}
+
+.os-step,
+.os-feature {
+  padding: 1.25rem 1.3rem;
+  background: var(--card);
+}
+
+.os-step__index {
+  color: var(--primary);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+
+.os-feature__icon {
+  display: grid;
+  width: 2.2rem;
+  height: 2.2rem;
+  margin-bottom: 0.9rem;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--foreground);
+}
+
+.os-feature__icon svg {
+  width: 1.05rem;
+  height: 1.05rem;
+}
+
+.os-step h3,
+.os-feature h3 {
+  margin: 0.6rem 0 0.4rem;
+  font-size: 0.98rem;
+  font-weight: 620;
+  letter-spacing: -0.01em;
+}
+
+.os-feature h3 {
+  margin-top: 0;
+}
+
+.os-step p,
+.os-feature p {
+  margin: 0;
+  color: var(--muted-foreground);
+  font-size: 0.85rem;
+  line-height: 1.55;
+}
+
 /* ── Closing CTA panel ───────────────────────────────────────────────── */
 
 .os-cta {
@@ -433,6 +542,14 @@ body {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .os-steps__grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .os-features__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .os-footer {
     grid-template-columns: 1fr auto;
     align-items: start;
@@ -457,6 +574,18 @@ body {
 @media (min-width: 60rem) {
   .os-strip {
     grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .os-features__grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/* Below this the hero has no room to spare for backdrop texture without
+ * crowding the headline — it becomes noise rather than atmosphere. */
+@media (max-width: 42rem) {
+  .os-hero__deco {
+    display: none;
   }
 }
 
