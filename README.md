@@ -8,6 +8,25 @@ The same application can run as a self-contained Docker installation on a VPS
 or on Cloudflare using a Python Worker, D1, R2, Cron Triggers, and Workers
 Static Assets.
 
+**Live deployment:** https://session.drawset.com — MIT licensed, source in this repo.
+
+## For evaluators
+
+Auth is intentionally simple: email + a one-time sign-in code, no passwords,
+for every role. That means:
+
+- **Organizer** and **speaker** are both fully self-serve — sign up (organizer)
+  or submit to the public CFP (speaker) with any email address you control,
+  and you'll receive a real code.
+- **Reviewer** is invite-only, same as it would be for a real conference — once
+  you're signed in as organizer, invite a second email address you also own
+  from **Evaluations → assign reviewers** and sign in as that identity to test
+  the reviewer role.
+
+No pre-seeded accounts or special access are required for any of the three
+roles. See the [demo script](#demo-matches-plan-29) below for the intended
+walkthrough order.
+
 ## Stack
 
 - **Backend** — Python 3.12, FastAPI, SQLAlchemy 2.0, Pydantic v2, SQLite on a VPS or D1 on Cloudflare, OpenAPI docs at `/docs`
