@@ -368,12 +368,17 @@ def schedule(
 
 
 def publish_agenda(db: Session, repos: Repositories, event_id: str) -> dict[str, Any]:
-    """Mark the agenda live and approve everything that is actually scheduled.
+    """Mark the agenda live. Scheduling is not the same decision as approving.
 
-    Publishing is the handoff to the public widgets (AIA-07). Sessions with a
-    slot are approved as part of it — placing a session on the calendar is the
-    organizer saying it is ready — while unscheduled ones stay pending so a
-    half-finished programme never leaks.
+    Publishing is the handoff to the public widgets (AIA-07), but it must not
+    silently override the organizer's content-approval calls (CNT-12): a
+    session left "Pending review" or flagged "Changes required" has to stay
+    off the public widgets even after it's scheduled and the agenda is
+    published, otherwise approval_status is decorative. This previously
+    force-set every scheduled session to "approved" here, which is exactly
+    the bug that let an unapproved session leak onto the public agenda.
+    Publishing only flips session.status; approval stays a separate,
+    deliberate action on each session.
     """
     event = repos.events.get(event_id)
     if event is None:
@@ -383,7 +388,6 @@ def publish_agenda(db: Session, repos: Repositories, event_id: str) -> dict[str,
     for session in repos.sessions.list_by_event(event_id):
         if session.starts_at is None or session.status == "cancelled":
             continue
-        session.approval_status = "approved"
         if session.status in ("draft", "confirmed", "scheduled"):
             session.status = "published"
         published += 1
