@@ -10,6 +10,31 @@ Static Assets.
 
 **Live deployment:** https://session.drawset.com — MIT licensed, source in this repo.
 
+## Features
+
+- **Auth & organization** — passwordless email codes, revocable sessions, first-run organization onboarding, owner/admin/member roles, team invitations, event roles (`owner/admin/reviewer/speaker`), scoped API keys.
+- **CFP forms** — form builder with conditional fields, participant roles, and category-based routing; publish/close/duplicate.
+- **Public CFP** — draft → edit → submit, submission-limit enforcement, confirmation email.
+- **Submissions** — status pipeline, bulk decisions, accept flow (creates the session, generates onboarding tasks, sends the acceptance email), CSV export.
+- **Evaluations** — scoring plans with weighted criteria, reviewer assignment, reviewer portal, aggregate scoring.
+- **Speakers & portal** — speaker readiness at a glance; self-service profile, submissions, tasks, sessions, and files.
+- **Tasks** — templates, auto-generated on acceptance, reminder emails.
+- **Files** — upload, download, delete, with per-person/per-event authorization.
+- **Communications** — branded transactional emails, automations (trigger → template), send history, `.ics` calendar invites.
+- **Sessions & agenda** — drag-and-drop scheduling with automatic conflict detection (room/speaker/track), public agenda + itinerary + speaker gallery.
+- **Dashboard** — real-time submission and onboarding metrics.
+
+## Demo
+
+1. Create an event with tracks/rooms/formats.
+2. Build + publish a CFP with a conditional rule and a routing rule.
+3. Submit publicly as a speaker (draft → submit, confirmation email sent).
+4. Create an evaluation plan, assign a reviewer, score it.
+5. Accept → a session is created, the speaker is marked accepted, onboarding tasks are generated, and an acceptance email is sent.
+6. The speaker completes a task in the portal → the dashboard updates.
+7. Schedule sessions → a room/speaker conflict is blocked → resolve it → agenda + ICS invites.
+8. Check the dashboard, API keys, and CSV export.
+
 ## For evaluators
 
 Auth is intentionally simple: email + a one-time sign-in code, no passwords,
@@ -23,9 +48,7 @@ for every role. That means:
   from **Evaluations → assign reviewers** and sign in as that identity to test
   the reviewer role.
 
-No pre-seeded accounts or special access are required for any of the three
-roles. See the [demo script](#demo-matches-plan-29) below for the intended
-walkthrough order.
+No pre-seeded accounts or special access are required for any of the three roles.
 
 ## Stack
 
@@ -135,9 +158,8 @@ OPEN_SESSION_ENVIRONMENT=production uv run alembic upgrade head
   URL, and only the deployed web origins in `OPEN_SESSION_CORS_ORIGINS`.
 - Configure SMTP or Cloudflare email through `apps/api/.env.example`; keep
   provider, OpenAI, and Composio secrets server-side.
-- Run `alembic current`, `/health`, and an evaluator-persona smoke test after a
-  restore or deployment. Evaluation mode must remain disabled outside the demo
-  environment.
+- After a restore or deployment, check `alembic current` and `/health`, and
+  sign in as each role once to confirm the deploy is healthy.
 
 <details>
 <summary>D1 transaction note</summary>
@@ -149,30 +171,3 @@ flows are supported, but the VPS target is the conservative choice when strict
 multi-statement atomicity is more important than Cloudflare-native hosting.
 
 </details>
-
-## What's implemented (all phases)
-
-- **Auth & organization (§3, §22)** — local passwordless email codes, hashed single-use login tokens, revocable signed HTTP-only sessions, first-run organization onboarding, owner/admin/member roles, email-bound team invitations, event role bindings (`owner/admin/reviewer/speaker`), and Bearer **API keys** with per-resource scopes.
-- **Events & program config (§6–7)** — event CRUD + create wizard payload, tracks/categories (incl. `serial_schedule`), tags, session formats, rooms.
-- **CFP forms (§8)** — full form builder data model (sections/fields, participant roles, conditional rules, routing rules), publish/close/duplicate, server-side validation.
-- **Public CFP (§9)** — welcome schema, passwordless account, draft → edit → submit with conditional-aware validation, category routing, submission-limit enforcement, confirmation email.
-- **Submissions (§10, §20)** — status tabs/filters, manual abstracts, decision endpoint with the §20 state machine, bulk decisions, accept flow (creates session, marks speakers, generates tasks, sends email), CSV export.
-- **Evaluations (§11)** — plans with scope + weighted criteria, reviewer assignment, reviewer portal, draft/submit reviews, aggregate scoring.
-- **Speakers & portal (§12–13)** — speakers list with readiness, self-service profile/submissions/tasks/sessions/files endpoints (`/api/v1/me/*`).
-- **Tasks (§14)** — templates, assignment generation on acceptance, completion (updates readiness), reminder job (idempotent via `email_job_receipts`).
-- **Files (§15)** — upload-intent → content → download → delete, local storage adapter, per-person/per-event authorization.
-- **Communications (§16–17)** — responsive branded HTML/plain-text transactional emails, seeded event templates with `{{merge.vars}}`, automations (trigger → condition → template), communication history, manual sends, iCalendar (`.ics`) invites with stable UID + `SEQUENCE`.
-- **Sessions & agenda (§18–19)** — manual sessions, accepted-submission conversion, scheduling with the conflict engine (room/speaker/track collisions, event boundaries, invalid durations), agenda + conflicts endpoints, provider-independent ICS invitations, and optional one-way speaker calendar synchronization through Composio managed auth.
-- **Dashboard (§6.3, §14)** — metrics and real-time onboarding readiness.
-- **Ops (§24)** — saved views, team management, CSV, OpenAPI.
-
-## Demo (matches plan §29)
-
-1. Create an event with tracks/rooms/formats.
-2. Build + publish a CFP with a conditional rule and routing rule.
-3. Submit publicly as a speaker (draft → submit, confirmation email recorded).
-4. Create an evaluation plan, assign a reviewer, score it.
-5. Accept → a Session is created, the speaker is marked accepted, onboarding tasks are generated, and an acceptance email is recorded.
-6. The speaker completes a task in the portal → the onboarding dashboard updates.
-7. Schedule sessions → a room/speaker conflict is blocked → resolve it → agenda + ICS invites.
-8. Check metrics, API keys, and CSV export.
