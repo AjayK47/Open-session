@@ -1,6 +1,6 @@
 {
   "$schema": "https://mintlify.com/docs.json",
-  "theme": "aspen",
+  "theme": "mint",
   "name": "Open Session",
   "description": "Guides and API reference for the open-source event programme manager.",
   "colors": {
@@ -8,36 +8,8 @@
     "light": "#60A5FA",
     "dark": "#1D4ED8"
   },
-  "appearance": {
-    "default": "dark",
-    "strict": false
-  },
-  "background": {
-    "color": {
-      "light": "#F8FAFC",
-      "dark": "#0B0D12"
-    },
-    "image": {
-      "light": "/docs-grid-light.svg",
-      "dark": "/docs-grid-dark.svg"
-    }
-  },
-  "fonts": {
-    "heading": {
-      "family": "Geist",
-      "weight": 600
-    },
-    "body": {
-      "family": "Geist",
-      "weight": 400
-    }
-  },
   "icons": {
     "library": "lucide"
-  },
-  "styling": {
-    "eyebrows": "breadcrumbs",
-    "codeblocks": "dark"
   },
   "favicon": "/favicon.svg",
   "navigation": {
