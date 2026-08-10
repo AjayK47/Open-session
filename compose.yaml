@@ -38,6 +38,8 @@ services:
     image: ghcr.io/ajayk47/open-session-api:${OPEN_SESSION_VERSION:-main}
     restart: unless-stopped
     entrypoint: ["uv", "run", "python", "-m", "app.jobs.reminder_loop"]
+    healthcheck:
+      disable: true
     environment:
       OPEN_SESSION_ENVIRONMENT: production
       OPEN_SESSION_DATABASE_URL: sqlite:////data/open_session.db
