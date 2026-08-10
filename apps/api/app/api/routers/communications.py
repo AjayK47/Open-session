@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_repos, require_email_template_role, require_event_role
+from app.api.deps import get_repos, require_automation_role, require_email_template_role, require_event_role
 from app.core.db import get_db
 from app.repositories import Repositories
 from app.schemas.ops import (
@@ -92,13 +92,12 @@ def create_automation(
 @router.patch("/automations/{automation_id}")
 def update_automation(
     body: AutomationUpdate,
-    automation_id: str,
-    event_id: str = Depends(require_event_role("owner", "admin")),
+    automation_id: str = Depends(require_automation_role("owner", "admin")),
     db: Session = Depends(get_db),
     repos: Repositories = Depends(get_repos),
 ):
     automation = repos.automations.get(automation_id)
-    if automation is None or automation.event_id != event_id:
+    if automation is None:
         raise HTTPException(status_code=404, detail="Automation not found")
     patch = body.model_dump(exclude_unset=True)
     if body.conditions is not None:

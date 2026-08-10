@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.api.deps import require_event_role
+from app.api.deps import require_api_key_role, require_event_role
 from app.core.db import get_db
 from app.core.security import hash_secret
 from app.models.auth import ApiKey
@@ -49,12 +49,11 @@ def create_key(
 
 @router.delete("/api-keys/{key_id}")
 def delete_key(
-    key_id: str,
-    event_id: str = Depends(require_event_role("owner", "admin")),
+    key_id: str = Depends(require_api_key_role("owner", "admin")),
     db: Session = Depends(get_db),
 ):
     key = db.get(ApiKey, key_id)
-    if key is None or key.event_id != event_id:
+    if key is None:
         raise HTTPException(status_code=404, detail="API key not found")
     db.delete(key)
     db.commit()

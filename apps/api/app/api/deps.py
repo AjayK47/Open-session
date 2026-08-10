@@ -223,6 +223,54 @@ def require_email_template_role(*roles: str) -> Callable:
     return dependency
 
 
+def require_api_key_role(*roles: str) -> Callable:
+    """Resolve an API key by id and require an event role on its event.
+
+    Same shape as require_email_template_role: DELETE /api-keys/{key_id}
+    isn't nested under /events/{event_id}, so this dependency previously
+    always 422'd — the "revoke key" button in the UI silently did nothing.
+    """
+
+    def dependency(
+        key_id: str,
+        principal: Principal = Depends(get_principal),
+        repos: Repositories = Depends(get_repos),
+        db: Session = Depends(get_db),
+    ) -> str:
+        key = db.get(ApiKey, key_id)
+        if key is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="API key not found")
+        if not _authorize_event(db, principal, key.event_id, set(roles)):
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions")
+        return key_id
+
+    return dependency
+
+
+def require_automation_role(*roles: str) -> Callable:
+    """Resolve an automation by id and require an event role on its event.
+
+    Same shape as require_email_template_role: PATCH /automations/{automation_id}
+    isn't nested under /events/{event_id}, so this always 422'd — the
+    enable/disable toggle in Templates & Automations silently didn't save.
+    """
+
+    def dependency(
+        automation_id: str,
+        principal: Principal = Depends(get_principal),
+        repos: Repositories = Depends(get_repos),
+        db: Session = Depends(get_db),
+    ) -> str:
+        automation = repos.automations.get(automation_id)
+        if automation is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Automation not found")
+        if not _authorize_event(db, principal, automation.event_id, set(roles)):
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions")
+        return automation_id
+
+    return dependency
+
+
 def require_form_role(*roles: str) -> Callable:
     """Resolve a form by id and require an event role on its event."""
 
