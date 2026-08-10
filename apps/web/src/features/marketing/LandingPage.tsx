@@ -2,175 +2,203 @@ import { ArrowRight, Github, Megaphone } from "lucide-react";
 import { Link } from "react-router";
 import "./landing.css";
 
-const capabilities = [
+/**
+ * The hero's schedule strip is illustrative, not live data — it exists to show,
+ * not tell, what Open Session actually produces at the end of the pipeline.
+ * Session 2 is styled as "happening now" to demonstrate the agenda is a live
+ * system, not a static PDF.
+ */
+const programme = [
   {
-    title: "Call for papers",
-    body: "Create submission forms with conditional fields, file uploads, participant roles, and category-based routing.",
+    time: "09:00",
+    room: "Room A",
+    track: "Keynote",
+    chip: "var(--track-1)",
+    title: "Why your CFP tool shouldn't be a Google Form",
+    speaker: "Amara Chen",
+    live: false,
   },
   {
-    title: "Review and selection",
-    body: "Assign reviewers, define weighted criteria, run multiple rounds, and use optional AI assistance when it helps.",
+    time: "10:15",
+    room: "Room B",
+    track: "Community",
+    chip: "var(--track-3)",
+    title: "Reviewing 400 proposals without losing your mind",
+    speaker: "Priya Raman",
+    live: true,
   },
   {
-    title: "Speaker onboarding",
-    body: "Give every speaker a private portal for biographies, headshots, slides, agreements, tasks, and resources.",
+    time: "11:30",
+    room: "Room C",
+    track: "Platform",
+    chip: "var(--track-6)",
+    title: "Scheduling six tracks without a single clash",
+    speaker: "Diego Alvarez",
+    live: false,
   },
   {
-    title: "Communications",
-    body: "Send decisions, reminders, and branded email templates with portable .ics invitations and optional calendar sync.",
-  },
-  {
-    title: "Agenda planning",
-    body: "Build the programme across days, rooms, and tracks while Open Session catches scheduling conflicts for you.",
-  },
-  {
-    title: "Public programme",
-    body: "Publish a mobile-friendly schedule, speaker directory, and personal itinerary on their own or inside your website.",
+    time: "13:00",
+    room: "Room A",
+    track: "Product",
+    chip: "var(--track-5)",
+    title: "What speakers actually want from a portal",
+    speaker: "Femi Okafor",
+    live: false,
   },
 ];
 
-const teams = [
-  ["Organizers", "Manage the programme from one workspace."],
-  ["Reviewers", "Score assigned proposals without the noise."],
-  ["Speakers", "Complete every request from one private link."],
-  ["Attendees", "Browse the programme on any screen."],
+const pipeline = [
+  {
+    title: "Submit",
+    body: "A CFP form with conditional fields, file uploads, and category-based routing — no separate form tool bolted on the side.",
+  },
+  {
+    title: "Review",
+    body: "Assign reviewers, score against weighted criteria, run multiple rounds, blind the submissions if you want to.",
+  },
+  {
+    title: "Decide",
+    body: "Accept or decline with a templated, on-brand email — not the same reply copy-pasted forty times.",
+  },
+  {
+    title: "Onboard",
+    body: "Speakers get a private portal for bios, headshots, slides, and every task you assign them.",
+  },
+  {
+    title: "Schedule",
+    body: "Drag sessions into rooms and tracks. Double-bookings get caught before you publish, not after.",
+  },
+  {
+    title: "Publish",
+    body: "One live agenda, speaker directory, and personal itinerary — on your site or ours.",
+  },
+];
+
+const roles = [
+  { name: "Organizers", chip: "var(--track-1)", body: "Run the whole programme from one workspace, not six tabs." },
+  { name: "Reviewers", chip: "var(--track-6)", body: "Score what's assigned. Nothing else shows up in the queue." },
+  { name: "Speakers", chip: "var(--track-5)", body: "One link handles every request — bio, slides, tasks, all of it." },
+  { name: "Attendees", chip: "var(--track-3)", body: "An agenda that's actually current, on any screen." },
 ];
 
 export function LandingPage() {
   return (
-    <div className="open-landing">
-      <header className="open-nav">
-        <Link to="/" className="open-wordmark" aria-label="Open Session home">
-          <span className="open-wordmark__mark" aria-hidden="true"><Megaphone /></span>
+    <div className="os-landing">
+      <header className="os-nav">
+        <Link to="/" className="os-wordmark" aria-label="Open Session home">
+          <span className="os-wordmark__mark" aria-hidden="true"><Megaphone /></span>
           <span>Open Session</span>
         </Link>
 
-        <nav className="open-nav__links" aria-label="Main navigation">
-          <a href="#product">Product</a>
+        <nav className="os-nav__links" aria-label="Main navigation">
+          <a href="#pipeline">How it works</a>
           <a href="https://open-session.mintlify.site/introduction">Documentation</a>
           <a href="https://github.com/AjayK47/Open-session" target="_blank" rel="noreferrer">GitHub</a>
         </nav>
 
-        <div className="open-nav__actions">
-          <Link to="/login" className="open-link">Sign in</Link>
-          <Link to="/login" className="open-button open-button--small">Get started</Link>
+        <div className="os-nav__actions">
+          <Link to="/login" className="os-link">Sign in</Link>
+          <Link to="/login" className="os-button os-button--small">Get started</Link>
         </div>
       </header>
 
       <main>
-        <section className="open-hero" aria-labelledby="open-hero-title">
-          <div className="open-hero__copy">
-            <p className="open-eyebrow">Free and open-source conference software</p>
-            <h1 id="open-hero-title">Run your entire speaker programme in one place.</h1>
-            <p className="open-hero__lede">
-              Open Session brings calls for papers, reviews, speaker onboarding,
-              communications, scheduling, and your public agenda into one workspace.
-            </p>
-            <div className="open-actions">
-              <Link to="/login" className="open-button">Start using Open Session <ArrowRight /></Link>
-              <a className="open-text-link" href="https://github.com/AjayK47/Open-session" target="_blank" rel="noreferrer">
-                <Github /> View source
-              </a>
-            </div>
-            <p className="open-hero__note">Self-host it. Keep your data. Pay no licence fee.</p>
+        <section className="os-hero" aria-labelledby="os-hero-title">
+          <p className="os-eyebrow">Open-source · self-hosted</p>
+          <h1 id="os-hero-title">Run the whole show, not just the form.</h1>
+          <p className="os-hero__lede">
+            Open Session replaces the CFP form, the review spreadsheet, the speaker
+            email thread, and the scheduling doc with one system you run yourself
+            — free, open source, and yours to keep.
+          </p>
+          <div className="os-actions">
+            <Link to="/login" className="os-button">Start using Open Session <ArrowRight /></Link>
+            <a className="os-text-link" href="https://github.com/AjayK47/Open-session" target="_blank" rel="noreferrer">
+              <Github /> View source
+            </a>
           </div>
+          <p className="os-hero__note">No per-seat licence. No vendor lock-in. Just software you own.</p>
 
-          <aside className="open-hero__audience" aria-label="Who Open Session is for">
-            <p>One system for the whole programme</p>
-            <dl>
-              {teams.map(([team, description]) => (
-                <div key={team}>
-                  <dt>{team}</dt>
-                  <dd>{description}</dd>
-                </div>
+          <div className="os-strip" aria-label="Example programme built with Open Session">
+            <p className="os-strip__label">A programme like the one you'd run</p>
+            <ol className="os-strip__list">
+              {programme.map((session) => (
+                <li key={session.title} className="os-card" style={{ "--chip": session.chip } as React.CSSProperties}>
+                  <div className="os-card__meta">
+                    <span className="os-card__time">{session.time}</span>
+                    <span className="os-card__room">{session.room}</span>
+                    {session.live && (
+                      <span className="os-card__live">
+                        <span className="os-card__live-dot" aria-hidden="true" />
+                        Live now
+                      </span>
+                    )}
+                  </div>
+                  <p className="os-card__title">{session.title}</p>
+                  <div className="os-card__foot">
+                    <span className="os-card__track">{session.track}</span>
+                    <span className="os-card__speaker">{session.speaker}</span>
+                  </div>
+                </li>
               ))}
-            </dl>
-          </aside>
-        </section>
-
-        <section className="open-band" aria-label="Open Session workflow">
-          <div>
-            <p>From the first proposal to the published programme — one record, no re-entry.</p>
+            </ol>
           </div>
         </section>
 
-        <section id="product" className="open-product" aria-labelledby="open-product-title">
-          <header className="open-section-head">
-            <div>
-              <p className="open-eyebrow">The product</p>
-              <h2 id="open-product-title">Less admin between submission and stage.</h2>
-            </div>
-            <p>
-              Stop moving the same information between forms, spreadsheets, folders,
-              inboxes, and scheduling tools. Each proposal becomes the single record
-              your team works from throughout the event.
-            </p>
+        <section id="pipeline" className="os-rundown" aria-labelledby="os-rundown-title">
+          <header className="os-section-head">
+            <p className="os-eyebrow">The pipeline</p>
+            <h2 id="os-rundown-title">How a submission becomes a session.</h2>
+            <p>Six stages, one record. Nothing gets re-typed on the way from proposal to programme.</p>
           </header>
 
-          <div className="open-capabilities">
-            {capabilities.map((capability) => (
-              <article key={capability.title}>
-                <h3>{capability.title}</h3>
-                <p>{capability.body}</p>
-              </article>
+          <ol className="os-rundown__list">
+            {pipeline.map((stage, index) => (
+              <li key={stage.title}>
+                <span className="os-rundown__num">{String(index + 1).padStart(2, "0")}</span>
+                <div>
+                  <h3>{stage.title}</h3>
+                  <p>{stage.body}</p>
+                </div>
+              </li>
             ))}
-          </div>
+          </ol>
         </section>
 
-        <section className="open-details" aria-label="How Open Session helps">
-          <article>
-            <p className="open-details__label">Collect and decide</p>
-            <div>
-              <h2>A better process for choosing the programme.</h2>
-              <p>
-                Ask the right questions with conditional submission forms, then route
-                proposals to the right reviewers. Structured criteria, blind review,
-                multiple rounds, and clear assignment progress keep decisions consistent.
-              </p>
-            </div>
-          </article>
+        <section className="os-roles" aria-labelledby="os-roles-title">
+          <header className="os-section-head">
+            <p className="os-eyebrow">Four roles, one system</p>
+            <h2 id="os-roles-title">Everyone gets their own door.</h2>
+          </header>
 
-          <article>
-            <p className="open-details__label">Prepare every speaker</p>
-            <div>
-              <h2>No more chasing biographies across email threads.</h2>
-              <p>
-                Speakers update their own profile and complete the tasks you assign.
-                Your team sees what is ready, what is missing, and who needs a reminder
-                without maintaining another spreadsheet.
-              </p>
-            </div>
-          </article>
-
-          <article>
-            <p className="open-details__label">Schedule and publish</p>
-            <div>
-              <h2>Build once. Keep every view in sync.</h2>
-              <p>
-                Arrange sessions by day, room, or track and resolve conflicts before
-                publishing. The same programme powers your public schedule, speaker
-                gallery, and attendee itinerary.
-              </p>
-            </div>
-          </article>
+          <ul className="os-roles__list">
+            {roles.map((role) => (
+              <li key={role.name}>
+                <span className="os-roles__dot" style={{ "--chip": role.chip } as React.CSSProperties} aria-hidden="true" />
+                <h3>{role.name}</h3>
+                <p>{role.body}</p>
+              </li>
+            ))}
+          </ul>
         </section>
 
-        <section className="open-source" aria-labelledby="open-source-title">
-          <div>
-            <p className="open-eyebrow">Open source, not a trial</p>
-            <h2 id="open-source-title">Own the software and the data behind your event.</h2>
+        <section className="os-source" aria-labelledby="os-source-title">
+          <div className="os-source__intro">
+            <p className="os-eyebrow">Own it, not rent it</p>
+            <h2 id="os-source-title">Self-host the whole thing, not just the config.</h2>
           </div>
-          <div>
+          <div className="os-source__body">
             <p>
-              Deploy Open Session on your own infrastructure, inspect every line of code,
-              and extend it through the API. The core product stays useful without a
-              proprietary integration or paid platform account.
+              Every part of Open Session ships as source — the CFP builder, the
+              review tools, the scheduler, the public programme. Deploy it on your
+              own infrastructure, read every line, and extend it through the API.
+              No proprietary integration tier, no seat count to negotiate.
             </p>
-            <div className="open-actions">
-              <a className="open-button open-button--light" href="https://github.com/AjayK47/Open-session" target="_blank" rel="noreferrer">
+            <div className="os-actions">
+              <a className="os-button" href="https://github.com/AjayK47/Open-session" target="_blank" rel="noreferrer">
                 <Github /> Explore the repository
               </a>
-              <a className="open-text-link open-text-link--light" href="https://open-session.mintlify.site/introduction">
+              <a className="os-text-link" href="https://open-session.mintlify.site/introduction">
                 Read the documentation <ArrowRight />
               </a>
             </div>
@@ -178,8 +206,8 @@ export function LandingPage() {
         </section>
       </main>
 
-      <footer className="open-footer">
-        <Link to="/" className="open-wordmark"><span>Open Session</span></Link>
+      <footer className="os-footer">
+        <Link to="/" className="os-wordmark"><span>Open Session</span></Link>
         <p>Open-source conference programme management.</p>
         <nav aria-label="Footer navigation">
           <a href="https://open-session.mintlify.site/introduction">Documentation</a>
