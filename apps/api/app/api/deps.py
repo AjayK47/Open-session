@@ -191,6 +191,32 @@ def require_event_access(
     return event_id
 
 
+def require_email_template_role(*roles: str) -> Callable:
+    """Resolve an email template by id and require an event role on its event.
+
+    Mirrors require_form_role: /email-templates/{template_id} isn't nested under
+    /events/{event_id}, so require_event_role's plain `event_id: str` param would
+    otherwise be treated as a required query param FastAPI never receives — a 422
+    "Field required" on every GET/PATCH here, which silently breaks the CFP form
+    builder's confirmation-email save (it PATCHes the template on every form save).
+    """
+
+    def dependency(
+        template_id: str,
+        principal: Principal = Depends(get_principal),
+        repos: Repositories = Depends(get_repos),
+        db: Session = Depends(get_db),
+    ) -> str:
+        template = repos.email_templates.get(template_id)
+        if template is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Template not found")
+        if not _authorize_event(db, principal, template.event_id, set(roles)):
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions")
+        return template_id
+
+    return dependency
+
+
 def require_form_role(*roles: str) -> Callable:
     """Resolve a form by id and require an event role on its event."""
 

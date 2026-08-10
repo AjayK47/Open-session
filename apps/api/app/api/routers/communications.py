@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_repos, require_event_role
+from app.api.deps import get_repos, require_email_template_role, require_event_role
 from app.core.db import get_db
 from app.repositories import Repositories
 from app.schemas.ops import (
@@ -41,23 +41,20 @@ def create_template(
 
 @router.get("/email-templates/{template_id}")
 def get_template(
-    template_id: str,
-    event_id: str = Depends(require_event_role("owner", "admin")),
+    template_id: str = Depends(require_email_template_role("owner", "admin")),
     repos: Repositories = Depends(get_repos),
 ):
-    template = communication_service.get_template(repos, event_id, template_id)
+    template = repos.email_templates.get(template_id)
     return _t(template)
 
 
 @router.patch("/email-templates/{template_id}")
 def update_template(
     body: EmailTemplateUpdate,
-    template_id: str,
-    event_id: str = Depends(require_event_role("owner", "admin")),
+    template_id: str = Depends(require_email_template_role("owner", "admin")),
     db: Session = Depends(get_db),
     repos: Repositories = Depends(get_repos),
 ):
-    communication_service.get_template(repos, event_id, template_id)
     template = repos.email_templates.update(template_id, body.model_dump(exclude_unset=True, exclude_none=True))
     db.commit()
     return _t(template)
