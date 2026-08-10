@@ -122,6 +122,9 @@ class FormRepository(ABC):
     @abstractmethod
     def update(self, form_id: str, patch: dict) -> SubmissionForm | None: ...
 
+    @abstractmethod
+    def delete(self, form_id: str) -> bool: ...
+
 
 class SubmissionRepository(ABC):
     @abstractmethod

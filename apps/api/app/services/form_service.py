@@ -69,9 +69,18 @@ def list_forms(repos: Repositories, event_id: str) -> list[SubmissionForm]:
     return repos.forms.list_by_event(event_id)
 
 
+def _validate_confirmation_template(repos: Repositories, event_id: str, template_id: str | None) -> None:
+    if template_id is None:
+        return
+    template = repos.email_templates.get(template_id)
+    if template is None or template.event_id != event_id or template.type != "submission_received":
+        raise HTTPException(status_code=400, detail="Select a submission confirmation template from this event.")
+
+
 def create_form(db: Session, repos: Repositories, event_id: str, payload: FormCreate) -> SubmissionForm:
     if repos.forms.get_by_slug(event_id, payload.slug):
         raise HTTPException(status_code=409, detail="A form with this slug already exists.")
+    _validate_confirmation_template(repos, event_id, payload.confirmation_template_id)
     form = repos.forms.create(event_id, _dump(payload))
     db.commit()
     return form
@@ -83,15 +92,32 @@ def get_form(repos: Repositories, form_id: str) -> SubmissionForm | None:
 
 def update_form(db: Session, repos: Repositories, form_id: str, payload: FormUpdate) -> SubmissionForm:
     patch = _dump(payload, exclude_unset=True)
+    current = repos.forms.get(form_id)
+    if current is None:
+        raise HTTPException(status_code=404, detail="Form not found")
+    if "confirmation_template_id" in patch:
+        _validate_confirmation_template(repos, current.event_id, patch["confirmation_template_id"])
     if "slug" in patch and patch["slug"] is not None:
-        form = repos.forms.get(form_id)
-        if form and repos.forms.get_by_slug(form.event_id, patch["slug"]) and patch["slug"] != form.slug:
+        if repos.forms.get_by_slug(current.event_id, patch["slug"]) and patch["slug"] != current.slug:
             raise HTTPException(status_code=409, detail="A form with this slug already exists.")
     form = repos.forms.update(form_id, patch)
     if form is None:
         raise HTTPException(status_code=404, detail="Form not found")
     db.commit()
     return form
+
+
+def delete_form(db: Session, repos: Repositories, form_id: str) -> None:
+    form = repos.forms.get(form_id)
+    if form is None:
+        raise HTTPException(status_code=404, detail="Form not found")
+    if repos.submissions.list_by_event(form.event_id, {"form_id": form.id}):
+        raise HTTPException(
+            status_code=409,
+            detail="This form has submissions and cannot be deleted. Close it instead.",
+        )
+    repos.forms.delete(form_id)
+    db.commit()
 
 
 def set_status(db: Session, repos: Repositories, form_id: str, status: str) -> SubmissionForm:

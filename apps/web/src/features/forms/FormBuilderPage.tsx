@@ -44,8 +44,8 @@ import {
   cn,
 } from "@opensession/ui";
 import { toast } from "sonner";
-import type { FieldConfig, ParticipantRoleConfig, SectionConfig, SubmissionFormInput } from "@opensession/schemas";
-import { formsApi, programApi, evaluationsApi, ApiError } from "../../api";
+import type { EmailTemplate, FieldConfig, ParticipantRoleConfig, SectionConfig, SubmissionFormInput } from "@opensession/schemas";
+import { communicationsApi, formsApi, programApi, evaluationsApi, ApiError } from "../../api";
 import { useCurrentEvent } from "../../lib/current-event";
 import { WizardShell, type WizardStep } from "../../components/wizard-shell";
 import { ConditionalRuleEditor, RoutingRuleEditor } from "./RuleBuilder";
@@ -134,6 +134,8 @@ export function FormBuilderPage() {
   const [previewOpen, setPreviewOpen] = useState(true);
   const [fieldDialogOpen, setFieldDialogOpen] = useState(false);
   const [roleDialogOpen, setRoleDialogOpen] = useState(false);
+  const [confirmationEmail, setConfirmationEmail] = useState<EmailTemplate | null>(null);
+  const [confirmationEnabled, setConfirmationEnabled] = useState(true);
 
   const { data: existing } = useQuery({
     queryKey: ["forms", "detail", formId],
@@ -142,6 +144,7 @@ export function FormBuilderPage() {
   });
   useEffect(() => {
     if (existing) {
+      setConfirmationEnabled(Boolean(existing.confirmation_template_id));
       setDraft({
         internal_name: existing.internal_name,
         public_title: existing.public_title,
@@ -158,6 +161,7 @@ export function FormBuilderPage() {
         allow_drafts: existing.allow_drafts,
         auto_redirect_portal: existing.auto_redirect_portal,
         success_message_html: existing.success_message_html,
+        confirmation_template_id: existing.confirmation_template_id,
       });
     }
   }, [existing]);
@@ -166,9 +170,34 @@ export function FormBuilderPage() {
   const { data: formats = [] } = useQuery({ queryKey: ["formats", eventId], queryFn: () => programApi.formats.list(eventId) });
   const { data: tags = [] } = useQuery({ queryKey: ["tags", eventId], queryFn: () => programApi.tags.list(eventId) });
   const { data: plans = [] } = useQuery({ queryKey: ["evaluation-plans", eventId], queryFn: () => evaluationsApi.list(eventId) });
+  const { data: templates = [] } = useQuery({
+    queryKey: ["email-templates", eventId],
+    queryFn: () => communicationsApi.listTemplates(eventId),
+  });
+  const confirmationTemplates = templates.filter((template) => template.type === "submission_received");
+
+  useEffect(() => {
+    if (!confirmationEnabled) return;
+    const selected = confirmationTemplates.find((template) => template.id === draft.confirmation_template_id)
+      ?? confirmationTemplates[0];
+    if (!selected) return;
+    if (!draft.confirmation_template_id) {
+      setDraft((current) => ({ ...current, confirmation_template_id: selected.id }));
+    }
+    setConfirmationEmail(selected);
+  }, [templates, draft.confirmation_template_id, confirmationEnabled]);
 
   const save = useMutation({
-    mutationFn: () => (isNew ? formsApi.create(eventId, draft) : formsApi.update(formId!, draft)),
+    mutationFn: async () => {
+      if (confirmationEnabled && confirmationEmail) {
+        await communicationsApi.updateTemplate(confirmationEmail.id, {
+          subject_template: confirmationEmail.subject_template,
+          html_template: confirmationEmail.html_template,
+          text_template: confirmationEmail.text_template,
+        });
+      }
+      return isNew ? formsApi.create(eventId, draft) : formsApi.update(formId!, draft);
+    },
     onSuccess: (form) => {
       toast.success("Form saved");
       void queryClient.invalidateQueries({ queryKey: ["forms", eventId] });
@@ -458,14 +487,75 @@ export function FormBuilderPage() {
           )}
 
           {step === "notifications" && (
-            <div className="space-y-4">
-              <div className="rounded-md border border-border p-3">
-                <p className="text-sm font-medium text-foreground">Submission confirmation — required</p>
-                <p className="text-xs text-muted-foreground">
-                  Every submitter automatically receives a confirmation email on submit. Customize the template under
-                  Communications → Templates &amp; Automations.
+            <div className="space-y-5">
+              <div className="rounded-lg border border-border bg-card p-4">
+                <ToggleRow
+                  label="Send submission confirmation"
+                  checked={confirmationEnabled}
+                  onChange={(enabled) => {
+                    setConfirmationEnabled(enabled);
+                    const template = confirmationEmail ?? confirmationTemplates[0] ?? null;
+                    setConfirmationEmail(template);
+                    setDraft((current) => ({
+                      ...current,
+                      confirmation_template_id: enabled ? template?.id ?? null : null,
+                    }));
+                  }}
+                />
+                <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                  Sent automatically after a speaker submits this form. Changes to a shared template also apply to other forms using it.
                 </p>
               </div>
+              {confirmationEnabled && confirmationEmail ? (
+                <>
+                  <div className="space-y-1.5">
+                    <Label>Email template</Label>
+                    <Select
+                      value={confirmationEmail.id}
+                      onValueChange={(templateId) => {
+                        const selected = confirmationTemplates.find((template) => template.id === templateId);
+                        if (selected) {
+                          setDraft((current) => ({ ...current, confirmation_template_id: selected.id }));
+                          setConfirmationEmail(selected);
+                        }
+                      }}
+                    >
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {confirmationTemplates.map((template) => (
+                          <SelectItem key={template.id} value={template.id}>{template.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Subject</Label>
+                    <Input
+                      value={confirmationEmail.subject_template}
+                      onChange={(event) => setConfirmationEmail((current) => current ? { ...current, subject_template: event.target.value } : current)}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Email message</Label>
+                    <RichTextEditor
+                      value={confirmationEmail.html_template}
+                      onChange={(html) => setConfirmationEmail((current) => current ? { ...current, html_template: html } : current)}
+                      placeholder="Write the confirmation message..."
+                    />
+                  </div>
+                  <div className="rounded-md bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
+                    Available variables: <code>{"{{speaker.first_name}}"}</code>, <code>{"{{event.name}}"}</code>, and <code>{"{{submission.title}}"}</code>
+                  </div>
+                </>
+              ) : confirmationEnabled ? (
+                <p className="rounded-md border border-dashed border-border p-4 text-sm text-muted-foreground">
+                  No submission confirmation template is available for this event. Create one under Communications, then return here.
+                </p>
+              ) : (
+                <p className="rounded-md border border-dashed border-border p-4 text-sm text-muted-foreground">
+                  Submitters will not receive an automatic confirmation email for this form.
+                </p>
+              )}
             </div>
           )}
         </div>

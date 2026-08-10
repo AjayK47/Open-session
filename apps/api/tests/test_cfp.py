@@ -202,6 +202,58 @@ def test_duplicate_form(client):
     assert dup.json()["slug"].startswith("ai-agent-cfp-")
 
 
+def test_delete_empty_form_but_preserve_forms_with_submissions(client):
+    _login(client, "owner-delete@example.com")
+    event = _create_event_with_program(client)
+
+    empty_form = client.post(
+        f"/api/v1/events/{event['id']}/forms",
+        json=_form_payload(client, event["id"], slug="empty-form"),
+    ).json()
+    deleted = client.delete(f"/api/v1/forms/{empty_form['id']}")
+    assert deleted.status_code == 204
+    assert client.get(f"/api/v1/forms/{empty_form['id']}").status_code == 404
+
+    active_form = client.post(
+        f"/api/v1/events/{event['id']}/forms",
+        json=_form_payload(client, event["id"], slug="active-form"),
+    ).json()
+    assert client.post(f"/api/v1/forms/{active_form['id']}/publish").status_code == 200
+    tracks = client.get(f"/api/v1/events/{event['id']}/tracks").json()
+    formats = client.get(f"/api/v1/events/{event['id']}/formats").json()
+    code = client.post(
+        f"/api/v1/public/forms/{event['slug']}/active-form/auth/request-code",
+        json={"email": "speaker-delete@example.com"},
+    ).json()["dev_code"]
+    client.post(
+        f"/api/v1/public/forms/{event['slug']}/active-form/auth/verify",
+        json={"email": "speaker-delete@example.com", "code": code},
+    )
+    draft = client.post(
+        f"/api/v1/public/forms/{event['slug']}/active-form/submissions",
+        json=_submission_payload(event["id"], tracks[0]["id"], formats[0]["id"]),
+    )
+    assert draft.status_code == 201, draft.text
+
+    _login(client, "owner-delete@example.com")
+    refused = client.delete(f"/api/v1/forms/{active_form['id']}")
+    assert refused.status_code == 409
+    assert "Close it instead" in refused.json()["detail"]
+
+
+def test_form_can_select_submission_confirmation_template(client):
+    _login(client, "owner-template@example.com")
+    event = _create_event_with_program(client)
+    templates = client.get(f"/api/v1/events/{event['id']}/email-templates").json()
+    confirmation = next(template for template in templates if template["type"] == "submission_received")
+    payload = _form_payload(client, event["id"])
+    payload["confirmation_template_id"] = confirmation["id"]
+
+    form = client.post(f"/api/v1/events/{event['id']}/forms", json=payload)
+    assert form.status_code == 201, form.text
+    assert form.json()["confirmation_template_id"] == confirmation["id"]
+
+
 def test_full_public_submission_flow(client):
     _login(client, "owner@example.com")
     event = _create_event_with_program(client)

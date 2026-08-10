@@ -22,6 +22,7 @@ export const formsApi = {
   publish: (formId: string) => http.post<SubmissionForm>(`/api/v1/forms/${formId}/publish`),
   close: (formId: string) => http.post<SubmissionForm>(`/api/v1/forms/${formId}/close`),
   duplicate: (formId: string) => http.post<SubmissionForm>(`/api/v1/forms/${formId}/duplicate`),
+  remove: (formId: string) => http.delete<void>(`/api/v1/forms/${formId}`),
 };
 
 export const publicApi = {

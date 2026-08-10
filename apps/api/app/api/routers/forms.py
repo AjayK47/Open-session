@@ -47,6 +47,15 @@ def update_form(
     return form_service.form_to_read(form_service.update_form(db, repos, form_id, body))
 
 
+@router.delete("/forms/{form_id}", status_code=204)
+def delete_form(
+    form_id: str = Depends(require_form_role("owner", "admin")),
+    db: Session = Depends(get_db),
+    repos: Repositories = Depends(get_repos),
+) -> None:
+    form_service.delete_form(db, repos, form_id)
+
+
 @router.post("/forms/{form_id}/publish", response_model=FormRead)
 def publish_form(
     form_id: str = Depends(require_form_role("owner", "admin")),

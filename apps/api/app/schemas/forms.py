@@ -97,6 +97,7 @@ class FormCreate(BaseModel):
     auto_redirect_portal: bool = False
     success_message_html: str | None = None
     edit_locked_after: datetime | None = None
+    confirmation_template_id: str | None = None
 
 
 class FormUpdate(BaseModel):
@@ -116,6 +117,7 @@ class FormUpdate(BaseModel):
     auto_redirect_portal: bool | None = None
     success_message_html: str | None = None
     edit_locked_after: datetime | None = None
+    confirmation_template_id: str | None = None
 
 
 class FormRead(BaseModel):

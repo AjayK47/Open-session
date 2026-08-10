@@ -241,6 +241,14 @@ class SqlAlchemyFormRepository(FormRepository):
         self.db.flush()
         return form
 
+    def delete(self, form_id: str) -> bool:
+        form = self.get(form_id)
+        if form is None:
+            return False
+        self.db.delete(form)
+        self.db.flush()
+        return True
+
 
 class SqlAlchemySubmissionRepository(SubmissionRepository):
     def __init__(self, db: Session):

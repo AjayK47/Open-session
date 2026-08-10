@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.core.db import utcnow
 from app.email import EmailMessageInput, send_email
-from app.email.templates import submission_received_email
+from app.email.templates import branded_email, submission_received_email
 from app.models.auth import AuditEvent, EmailJobReceipt, RoleBinding, User
 from app.models.cfp import Submission, SubmissionEvent, SubmissionForm
 from app.models.program import Event
@@ -253,12 +253,34 @@ def _send_confirmation(form: SubmissionForm, submission: Submission, repos: Repo
     submitter = repos.people.get(submission.submitter_person_id) if submission.submitter_person_id else None
     event = repos.events.get(form.event_id)
     event_name = event.name if event else "our conference"
-    rendered = submission_received_email(
-        event_name=event_name,
-        form_name=form.public_title,
-        recipient_name=submitter.first_name if submitter and submitter.first_name else "",
-        submission_title=submission.title or "Your proposal",
-    )
+    template = repos.email_templates.get(form.confirmation_template_id) if form.confirmation_template_id else None
+    if template and template.event_id == form.event_id and template.type == "submission_received":
+        context = {
+            "event": {"name": event_name},
+            "speaker": {
+                "first_name": submitter.first_name if submitter and submitter.first_name else "",
+                "full_name": " ".join(part for part in [submitter.first_name, submitter.last_name] if part)
+                if submitter
+                else "",
+            },
+            "submission": {"title": submission.title or "Your proposal"},
+        }
+        subject = communication_service.render(template.subject_template, context)
+        rendered = branded_email(
+            subject=subject,
+            preheader=subject,
+            eyebrow=event_name,
+            title="Submission received",
+            body_html=communication_service.render(template.html_template, context),
+            body_text=communication_service.render(template.text_template or "", context),
+        )
+    else:
+        rendered = submission_received_email(
+            event_name=event_name,
+            form_name=form.public_title,
+            recipient_name=submitter.first_name if submitter and submitter.first_name else "",
+            submission_title=submission.title or "Your proposal",
+        )
     recipient = (submitter.primary_email if submitter else None) or "noreply@localhost"
     return send_email(
         EmailMessageInput(
@@ -390,15 +412,16 @@ def submit(
     submission.status = "submitted"
     submission.submitted_at = utcnow()
 
-    _send_confirmation(form, submission, repos)
-    db.add(
-        EmailJobReceipt(
-            job_type="submission_confirmation",
-            dedupe_key=f"subm:{submission.id}",
-            status="sent",
-            processed_at=utcnow(),
+    if form.confirmation_template_id:
+        _send_confirmation(form, submission, repos)
+        db.add(
+            EmailJobReceipt(
+                job_type="submission_confirmation",
+                dedupe_key=f"subm:{submission.id}",
+                status="sent",
+                processed_at=utcnow(),
+            )
         )
-    )
     db.add(
         AuditEvent(
             event_id=form.event_id,

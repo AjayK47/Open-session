@@ -1,7 +1,21 @@
+import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "react-router";
-import { FileText, Plus, Copy, ExternalLink, MoreHorizontal } from "lucide-react";
-import { Button, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@opensession/ui";
+import { FileText, Plus, Copy, ExternalLink, MoreHorizontal, Trash2 } from "lucide-react";
+import {
+  Button,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@opensession/ui";
+import type { SubmissionForm } from "@opensession/schemas";
 import { toast } from "sonner";
 import { formsApi, ApiError } from "../../api";
 import { useCurrentEvent } from "../../lib/current-event";
@@ -13,6 +27,7 @@ export function FormsListPage() {
   const { event, eventId } = useCurrentEvent();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const [formToDelete, setFormToDelete] = useState<SubmissionForm | null>(null);
   const { data: forms, isLoading } = useQuery({ queryKey: ["forms", eventId], queryFn: () => formsApi.list(eventId) });
 
   const publish = useMutation({
@@ -37,6 +52,15 @@ export function FormsListPage() {
       void queryClient.invalidateQueries({ queryKey: ["forms", eventId] });
       navigate(`/app/events/${eventId}/forms/${form.id}/edit`);
     },
+  });
+  const remove = useMutation({
+    mutationFn: (formId: string) => formsApi.remove(formId),
+    onSuccess: () => {
+      toast.success("Form deleted");
+      setFormToDelete(null);
+      void queryClient.invalidateQueries({ queryKey: ["forms", eventId] });
+    },
+    onError: (error) => toast.error(error instanceof ApiError ? error.message2 : "Could not delete form"),
   });
 
   return (
@@ -107,6 +131,10 @@ export function FormsListPage() {
                       {form.status !== "open" && <DropdownMenuItem onSelect={() => publish.mutate(form.id)}>Open</DropdownMenuItem>}
                       {form.status === "open" && <DropdownMenuItem onSelect={() => close.mutate(form.id)}>Close</DropdownMenuItem>}
                       <DropdownMenuItem onSelect={() => duplicate.mutate(form.id)}>Duplicate</DropdownMenuItem>
+                      <DropdownMenuItem destructive onSelect={() => setFormToDelete(form)}>
+                        <Trash2 />
+                        Delete
+                      </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
@@ -115,6 +143,26 @@ export function FormsListPage() {
           </div>
         )}
       </div>
+      <Dialog open={Boolean(formToDelete)} onOpenChange={(open) => !open && setFormToDelete(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete submission form?</DialogTitle>
+            <DialogDescription>
+              “{formToDelete?.internal_name}” will be permanently deleted. Forms that already contain submissions must be closed instead.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setFormToDelete(null)}>Cancel</Button>
+            <Button
+              variant="destructive"
+              disabled={remove.isPending}
+              onClick={() => formToDelete && remove.mutate(formToDelete.id)}
+            >
+              {remove.isPending ? "Deleting…" : "Delete form"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

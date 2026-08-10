@@ -388,6 +388,7 @@ export interface SubmissionFormInput {
   allow_drafts?: boolean;
   auto_redirect_portal?: boolean;
   success_message_html?: string | null;
+  confirmation_template_id?: string | null;
 }
 export type SubmissionFormUpdateInput = Partial<SubmissionFormInput>;
 
