@@ -186,7 +186,13 @@ def require_event_access(
     event = repos.events.get(event_id)
     if event is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event not found")
-    if not _authorize_event(db, principal, event_id, {"owner", "admin", "reviewer", "speaker"}):
+    # Broad read access — any bound role (including owner/admin) may pass. For
+    # API keys, {"owner", "admin"} being in that set otherwise routes through
+    # _authorize_event's higher-permission branch, which requires a `scope`
+    # argument; without one it always returns False, so *any* API key 403'd
+    # here regardless of its scopes. Passing "events:read" fixes that and
+    # wires up the scope's actual meaning at the same time.
+    if not _authorize_event(db, principal, event_id, {"owner", "admin", "reviewer", "speaker"}, "events:read"):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions")
     return event_id
 

@@ -15,8 +15,14 @@ export const apiKeysApi = {
   remove: (keyId: string) => http.delete<{ ok: boolean }>(`/api/v1/api-keys/${keyId}`),
 };
 
+// "events:write" is the scope the backend actually checks for most
+// organizer-level routes (forms, evaluations, communications, dashboard,
+// sessions, program setup — see require_event_role's default scope in
+// apps/api/app/api/deps.py). Without it selectable here, a key could never
+// satisfy those endpoints regardless of which other boxes were checked.
 export const API_KEY_SCOPES = [
   "events:read",
+  "events:write",
   "submissions:read",
   "submissions:write",
   "speakers:read",
