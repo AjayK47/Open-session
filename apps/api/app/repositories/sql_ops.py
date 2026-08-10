@@ -7,7 +7,7 @@ from app.core.db import utcnow
 from app.models.comms import Communication, CommunicationAutomation, EmailTemplate
 from app.models.evaluation import EvaluationPlan, Review, ReviewAssignment
 from app.models.files import File, FileComment
-from app.models.people_ops import EventPerson
+from app.models.people_ops import EventPerson, PersonNote
 from app.models.portal import FieldDefinition, FileRequest, FileRequestUpload, PortalForm, PortalResource
 from app.models.schedule import ProgramSession, SessionParticipant
 from app.models.tasks import TaskAssignment, TaskTemplate
@@ -23,6 +23,7 @@ from app.repositories.ops import (
     FileRepository,
     FileRequestRepository,
     FileRequestUploadRepository,
+    PersonNoteRepository,
     PortalFormRepository,
     PortalResourceRepository,
     ReviewAssignmentRepository,
@@ -837,3 +838,21 @@ class SqlFileRequestUploadRepository(FileRequestUploadRepository):
         self.db.add(upload)
         self.db.flush()
         return upload
+
+
+class SqlPersonNoteRepository(PersonNoteRepository):
+    def __init__(self, db: Session):
+        self.db = db
+
+    def list_for_person(self, person_id: str) -> list[PersonNote]:
+        return list(
+            self.db.scalars(
+                select(PersonNote).where(PersonNote.person_id == person_id).order_by(PersonNote.created_at.desc())
+            )
+        )
+
+    def create(self, data: dict) -> PersonNote:
+        note = PersonNote(**data)
+        self.db.add(note)
+        self.db.flush()
+        return note

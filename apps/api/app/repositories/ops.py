@@ -5,7 +5,7 @@ from typing import Any
 from app.models.comms import Communication, CommunicationAutomation, EmailTemplate
 from app.models.evaluation import EvaluationPlan, Review, ReviewAssignment
 from app.models.files import File, FileComment
-from app.models.people_ops import EventPerson
+from app.models.people_ops import EventPerson, PersonNote
 from app.models.portal import FieldDefinition, FileRequest, FileRequestUpload, PortalForm, PortalResource
 from app.models.schedule import ProgramSession, SessionParticipant
 from app.models.tasks import TaskAssignment, TaskTemplate
@@ -348,3 +348,11 @@ class FileRequestUploadRepository(ABC):
 
     @abstractmethod
     def create(self, data: dict) -> FileRequestUpload: ...
+
+
+class PersonNoteRepository(ABC):
+    @abstractmethod
+    def list_for_person(self, person_id: str) -> list[PersonNote]: ...
+
+    @abstractmethod
+    def create(self, data: dict) -> PersonNote: ...

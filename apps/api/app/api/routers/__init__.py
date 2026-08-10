@@ -4,6 +4,7 @@ from .api_keys import router as api_keys_router
 from .auth import router as auth_router
 from .calendar import router as calendar_router
 from .communications import router as communications_router
+from .crm import router as crm_router
 from .dashboard import router as dashboard_router
 from .evaluations import router as evaluations_router
 from .events import router as events_router
@@ -49,5 +50,6 @@ api_router.include_router(team_router)
 api_router.include_router(api_keys_router)
 api_router.include_router(reminders_router)
 api_router.include_router(resources_router)
+api_router.include_router(crm_router)
 
 __all__ = ["api_router"]

@@ -33,3 +33,22 @@ class EventPerson(TimestampMixin, Base):
 
     event: Mapped["Event"] = relationship()
     person: Mapped["Person"] = relationship()
+
+
+class PersonNote(TimestampMixin, Base):
+    """An organizer's internal note on a Person, org-wide (CRM-03).
+
+    Not tied to any one event — a note recorded while sourcing a speaker for
+    one conference should still be visible when they're being considered for
+    the next one, which is the whole point of a cross-event CRM.
+    """
+
+    __tablename__ = "person_notes"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
+    person_id: Mapped[str] = mapped_column(ForeignKey("people.id"), index=True, nullable=False)
+    author_user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), nullable=False)
+    author_name: Mapped[str] = mapped_column(String(200), nullable=False)
+    body: Mapped[str] = mapped_column(String(4000), nullable=False)
+
+    person: Mapped["Person"] = relationship()

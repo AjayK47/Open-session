@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, ForeignKey, Integer, String, Text
+from sqlalchemy import JSON, Boolean, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.db import Base, TimestampMixin, UTCDateTime
@@ -113,3 +113,7 @@ class Person(TimestampMixin, Base):
     website: Mapped[str | None] = mapped_column(String(500))
     linkedin_url: Mapped[str | None] = mapped_column(String(500))
     x_url: Mapped[str | None] = mapped_column(String(500))
+    # Organizer-defined labels on the Person itself (CRM-04) — deliberately
+    # separate from EventPerson.custom_fields_json, which is per-event
+    # logistics (SPK-15). Tags describe the person across every event.
+    tags_json: Mapped[list] = mapped_column(JSON, default=list, nullable=False)

@@ -1,4 +1,4 @@
-from sqlalchemy import func, or_, select, update
+from sqlalchemy import String, func, or_, select, update
 from sqlalchemy.orm import Session
 
 from app.models.cfp import Submission, SubmissionForm, SubmissionParticipant, SubmissionTrack
@@ -207,6 +207,29 @@ class SqlAlchemyPersonRepository(PersonRepository):
             setattr(person, key, value)
         self.db.flush()
         return person
+
+    def list_all(
+        self,
+        search: str | None = None,
+        company: str | None = None,
+        job_title: str | None = None,
+        tag: str | None = None,
+    ) -> list[Person]:
+        stmt = select(Person)
+        if search:
+            like = f"%{search}%"
+            name = func.coalesce(Person.first_name, "") + " " + func.coalesce(Person.last_name, "")
+            stmt = stmt.where(or_(name.ilike(like), Person.primary_email.ilike(like)))
+        if company:
+            stmt = stmt.where(Person.company == company)
+        if job_title:
+            stmt = stmt.where(Person.job_title == job_title)
+        if tag:
+            # tags_json is a JSON array of strings; matching the quoted form
+            # avoids "ai" falsely matching a tag like "railway" substring-wise.
+            stmt = stmt.where(Person.tags_json.cast(String).like(f'%"{tag}"%'))
+        stmt = stmt.order_by(Person.last_name.asc(), Person.first_name.asc())
+        return list(self.db.scalars(stmt))
 
 
 class SqlAlchemyFormRepository(FormRepository):

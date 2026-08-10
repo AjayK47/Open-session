@@ -25,6 +25,7 @@ from app.repositories.ops import (
     FileRepository,
     FileRequestRepository,
     FileRequestUploadRepository,
+    PersonNoteRepository,
     PortalFormRepository,
     PortalResourceRepository,
     ReviewAssignmentRepository,
@@ -58,6 +59,7 @@ from app.repositories.sql_ops import (
     SqlFileRepository,
     SqlFileRequestRepository,
     SqlFileRequestUploadRepository,
+    SqlPersonNoteRepository,
     SqlPortalFormRepository,
     SqlPortalResourceRepository,
     SqlReviewAssignmentRepository,
@@ -101,6 +103,7 @@ class Repositories:
     portal_resources: PortalResourceRepository
     file_requests: FileRequestRepository
     file_request_uploads: FileRequestUploadRepository
+    person_notes: PersonNoteRepository
 
 
 def create_repositories(db: Session) -> Repositories:
@@ -134,4 +137,5 @@ def create_repositories(db: Session) -> Repositories:
         portal_resources=SqlPortalResourceRepository(db),
         file_requests=SqlFileRequestRepository(db),
         file_request_uploads=SqlFileRequestUploadRepository(db),
+        person_notes=SqlPersonNoteRepository(db),
     )

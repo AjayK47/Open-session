@@ -17,3 +17,4 @@ export * from "./resources/dashboard";
 export * from "./resources/me";
 export * from "./resources/portal-forms";
 export * from "./resources/organization";
+export * from "./resources/crm";

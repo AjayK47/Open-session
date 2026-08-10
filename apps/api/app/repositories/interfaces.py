@@ -105,6 +105,19 @@ class PersonRepository(ABC):
     @abstractmethod
     def upsert_by_email(self, email: str, data: dict) -> Person: ...
 
+    @abstractmethod
+    def list_all(
+        self,
+        search: str | None = None,
+        company: str | None = None,
+        job_title: str | None = None,
+        tag: str | None = None,
+    ) -> list[Person]:
+        """Every Person in the deployment (CRM-01) — there is one organization,
+        so this is the org-level directory. `search` matches name or email;
+        `company`/`job_title` are exact-match facets; `tag` matches tags_json."""
+        ...
+
 
 class FormRepository(ABC):
     @abstractmethod

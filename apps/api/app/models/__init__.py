@@ -15,7 +15,7 @@ from app.models.comms import Communication, CommunicationAutomation, EmailTempla
 from app.models.evaluation import AiReviewRun, EvaluationPlan, Review, ReviewAssignment
 from app.models.files import File, FileRecord
 from app.models.organization import Organization, OrganizationInvitation, OrganizationMembership
-from app.models.people_ops import EventPerson
+from app.models.people_ops import EventPerson, PersonNote
 from app.models.portal import FieldDefinition, FileRequest, FileRequestUpload, PortalForm
 from app.models.program import Event, Person, Room, SessionFormat, Tag, Track
 from app.models.schedule import ProgramSession, SessionParticipant
@@ -54,6 +54,7 @@ __all__ = [
     "File",
     "FileRecord",
     "EventPerson",
+    "PersonNote",
     "Organization",
     "OrganizationInvitation",
     "OrganizationMembership",

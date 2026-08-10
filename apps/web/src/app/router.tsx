@@ -12,6 +12,8 @@ const LandingPage = lazy(() => import("../features/marketing/LandingPage").then(
 const OrganizationOnboardingPage = lazy(() => import("../features/organization/OrganizationOnboardingPage").then(m => ({ default: m.OrganizationOnboardingPage })));
 const OrganizationSettingsPage = lazy(() => import("../features/organization/OrganizationSettingsPage").then(m => ({ default: m.OrganizationSettingsPage })));
 const InvitationAcceptPage = lazy(() => import("../features/organization/InvitationAcceptPage").then(m => ({ default: m.InvitationAcceptPage })));
+const CrmDirectoryPage = lazy(() => import("../features/crm/CrmDirectoryPage").then(m => ({ default: m.CrmDirectoryPage })));
+const CrmContactPage = lazy(() => import("../features/crm/CrmContactPage").then(m => ({ default: m.CrmContactPage })));
 const EventListPage = lazy(() => import("../features/events/EventListPage").then(m => ({ default: m.EventListPage })));
 const CreateEventPage = lazy(() => import("../features/events/CreateEventPage").then(m => ({ default: m.CreateEventPage })));
 const OverviewPage = lazy(() => import("../features/overview/OverviewPage").then(m => ({ default: m.OverviewPage })));
@@ -99,6 +101,11 @@ export function AppRouter() {
         <Route path="/onboarding" element={<RequireAuth redirectTo="/login"><OrganizationOnboardingPage /></RequireAuth>} />
         <Route path="/invitations/accept" element={<RequireAuth redirectTo="/login"><InvitationAcceptPage /></RequireAuth>} />
         <Route path="/app/organization" element={<RequireAuth redirectTo="/login"><OrganizationSettingsPage /></RequireAuth>} />
+
+        {/* Speaker CRM (CRM-01) — org-level, deliberately outside the
+            /app/events/:eventId nesting: a contact here spans every event. */}
+        <Route path="/app/crm" element={<RequireAuth redirectTo="/login"><CrmDirectoryPage /></RequireAuth>} />
+        <Route path="/app/crm/:personId" element={<RequireAuth redirectTo="/login"><CrmContactPage /></RequireAuth>} />
 
         {/* Organizer app */}
         <Route

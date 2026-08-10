@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router";
 import { differenceInCalendarDays } from "date-fns";
-import { CalendarDays, LogOut, MapPin, Megaphone, Plus, Sparkles, ArrowRight, Building2, Settings } from "lucide-react";
+import { CalendarDays, LogOut, MapPin, Megaphone, Plus, Sparkles, ArrowRight, Building2, Settings, UsersRound } from "lucide-react";
 import {
   Avatar,
   AvatarFallback,
@@ -70,6 +70,7 @@ export function EventListPage() {
         <span className="flex size-9 items-center justify-center overflow-hidden rounded-xl border border-border bg-background text-primary">{organization?.logo_url ? <img src={apiUrl(organization.logo_url)} alt="" className="size-full object-contain p-1" /> : <Building2 className="size-4.5" />}</span>
         <div className="min-w-0"><p className="truncate text-sm font-semibold">{organization?.name ?? "Your events"}</p><p className="text-[11px] text-muted-foreground">Organization workspace</p></div>
         <div className="ml-auto flex items-center gap-1.5">
+          {organization && <Button variant="ghost" size="sm" asChild><Link to="/app/crm"><UsersRound />Speaker CRM</Link></Button>}
           {organization && <Button variant="ghost" size="sm" asChild><Link to="/app/organization"><Settings />Organization settings</Link></Button>}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
