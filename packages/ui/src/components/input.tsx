@@ -21,9 +21,11 @@ export const Input = React.forwardRef<HTMLInputElement, React.InputHTMLAttribute
       className={cn(
         fieldBase,
         "h-9 px-3 py-1 text-sm",
-        // Date/time inputs render a native picker glyph that ignores currentColor
-        // in light-on-dark; nudge it to match the field's own ink.
-        "[&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-55",
+        // Native date/time controls otherwise keep a black calendar glyph in
+        // dark mode. Give the browser the active surface scheme explicitly so
+        // all date inputs—not only the wrapped ones—remain legible.
+        "[color-scheme:light] dark:[color-scheme:dark]",
+        "[&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-75",
         "[&::-webkit-calendar-picker-indicator]:hover:opacity-100",
         "file:border-0 file:bg-transparent file:text-sm file:font-medium",
         className,

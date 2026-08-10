@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useNavigate } from "react-router";
@@ -8,7 +8,7 @@ import type { ProgramSeedFormat, ProgramSeedRoom, ProgramSeedTrack } from "@open
 import type { z } from "zod";
 import { format } from "date-fns";
 import type { LucideIcon } from "lucide-react";
-import { Sparkles, Settings2, Rocket, Plus, X, Layers, DoorOpen, Presentation } from "lucide-react";
+import { Sparkles, Settings2, Rocket, Plus, X, Layers, DoorOpen, Presentation, ImagePlus, UploadCloud } from "lucide-react";
 import {
   Badge,
   Button,
@@ -28,7 +28,7 @@ import {
 import { toast } from "sonner";
 import { WizardShell, type WizardStep } from "../../components/wizard-shell";
 import { Field, FieldError, ClearableDateTime } from "../../components/form-field";
-import { eventsApi, ApiError } from "../../api";
+import { eventsApi, uploadFile, ApiError } from "../../api";
 
 type BasicsForm = z.infer<typeof eventBasicsSchema>;
 
@@ -64,6 +64,9 @@ export function CreateEventPage() {
   const [tracks, setTracks] = useState<ProgramSeedTrack[]>([{ name: "Main Track" }]);
   const [rooms, setRooms] = useState<ProgramSeedRoom[]>([{ name: "Main Room" }]);
   const [formats, setFormats] = useState<ProgramSeedFormat[]>([{ name: "Talk", default_duration_minutes: 30 }]);
+  const [coverImage, setCoverImage] = useState<File | null>(null);
+  const [coverPreviewUrl, setCoverPreviewUrl] = useState<string | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
@@ -87,6 +90,16 @@ export function CreateEventPage() {
   const description = useWatch({ control: form.control, name: "description" }) ?? "";
   const watched = useWatch({ control: form.control });
 
+  useEffect(() => {
+    if (!coverImage) {
+      setCoverPreviewUrl(null);
+      return;
+    }
+    const url = URL.createObjectURL(coverImage);
+    setCoverPreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [coverImage]);
+
   function goNext(from: string, to: string) {
     setCompleted((prev) => new Set(prev).add(from));
     setStep(to);
@@ -100,6 +113,7 @@ export function CreateEventPage() {
       return;
     }
     const values = form.getValues();
+    setIsCreating(true);
     try {
       const event = await eventsApi.create({
         name: values.name,
@@ -117,11 +131,25 @@ export function CreateEventPage() {
           formats: formats.filter((f) => f.name.trim()),
         },
       });
+      if (coverImage) {
+        try {
+          const bannerFileId = await uploadFile(event.id, coverImage, "headshot");
+          await eventsApi.update(event.id, { banner_file_id: bannerFileId });
+        } catch (error) {
+          toast.warning(
+            error instanceof ApiError
+              ? `Event created, but the cover image could not be saved: ${error.message2}`
+              : "Event created, but the cover image could not be saved.",
+          );
+        }
+      }
       await queryClient.invalidateQueries({ queryKey: ["events"] });
       toast.success(`${event.name} created`);
       navigate(`/app/events/${event.id}/dashboard`);
     } catch (error) {
       toast.error(error instanceof ApiError ? error.message2 : "Could not create event");
+    } finally {
+      setIsCreating(false);
     }
   }
 
@@ -144,9 +172,9 @@ export function CreateEventPage() {
             Back
           </Button>
           {step === "review" ? (
-            <Button onClick={handleCreate} disabled={form.formState.isSubmitting}>
+            <Button onClick={handleCreate} disabled={isCreating}>
               <Rocket className="h-4 w-4" />
-              Create event
+              {isCreating ? "Creating…" : "Create event"}
             </Button>
           ) : (
             <Button onClick={() => goNext(step, step === "basics" ? "program" : "review")}>Next</Button>
@@ -235,6 +263,19 @@ export function CreateEventPage() {
               />
               {form.formState.errors.ends_at && <FieldError message="Required" />}
             </Field>
+              <div className="space-y-2 sm:col-span-2">
+                <div>
+                  <Label>Cover image</Label>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Used on event cards and public event pages. Recommended 1500 × 500.
+                  </p>
+                </div>
+                <CoverImagePicker
+                  file={coverImage}
+                  previewUrl={coverPreviewUrl}
+                  onChange={setCoverImage}
+                />
+              </div>
               <div className="space-y-1.5 sm:col-span-2">
                 <Label>Theme</Label>
                 <p className="text-xs text-muted-foreground">
@@ -286,7 +327,9 @@ export function CreateEventPage() {
           <StepIntro title="Review & create" description="Confirm the details below, then create the event." />
 
           <Card className="overflow-hidden">
-            <div className="h-20" style={coverStyle(watched.slug || "new-event")} />
+            <div className="h-28" style={coverPreviewUrl ? undefined : coverStyle(watched.slug || "new-event")}>
+              {coverPreviewUrl && <img src={coverPreviewUrl} alt="Event cover preview" className="size-full object-cover" />}
+            </div>
             <CardContent className="pt-4">
               <h3 className="text-base font-semibold text-foreground">{watched.name || "Untitled event"}</h3>
               <p className="mt-0.5 text-sm text-muted-foreground">
@@ -320,6 +363,78 @@ export function CreateEventPage() {
         </div>
       )}
     </WizardShell>
+  );
+}
+
+function CoverImagePicker({
+  file,
+  previewUrl,
+  onChange,
+}: {
+  file: File | null;
+  previewUrl: string | null;
+  onChange: (file: File | null) => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  function chooseFile(nextFile?: File) {
+    if (!nextFile) return;
+    if (!nextFile.type.startsWith("image/")) {
+      toast.error("Choose a JPG, PNG, WebP, or GIF image.");
+      return;
+    }
+    if (nextFile.size > 10 * 1024 * 1024) {
+      toast.error("Cover images must be 10 MB or smaller.");
+      return;
+    }
+    onChange(nextFile);
+  }
+
+  return (
+    <div className="overflow-hidden rounded-xl border border-border bg-card">
+      <button
+        type="button"
+        onClick={() => inputRef.current?.click()}
+        onDragOver={(event) => event.preventDefault()}
+        onDrop={(event) => {
+          event.preventDefault();
+          chooseFile(event.dataTransfer.files[0]);
+        }}
+        className="group relative flex min-h-36 w-full items-center justify-center overflow-hidden text-muted-foreground outline-none transition-colors hover:bg-muted/30 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/50"
+      >
+        {previewUrl ? (
+          <>
+            <img src={previewUrl} alt="Selected event cover" className="absolute inset-0 size-full object-cover" />
+            <span className="relative flex items-center gap-2 rounded-full bg-background/90 px-3 py-1.5 text-xs font-medium text-foreground opacity-0 shadow-sm backdrop-blur-sm transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
+              <UploadCloud className="size-3.5" /> Replace image
+            </span>
+          </>
+        ) : (
+          <span className="flex flex-col items-center gap-2 px-6 py-5 text-center">
+            <span className="flex size-10 items-center justify-center rounded-full bg-primary/10 text-primary">
+              <ImagePlus className="size-5" />
+            </span>
+            <span className="text-sm font-medium text-foreground">Upload a cover image</span>
+            <span className="text-xs">Drop an image here or click to browse</span>
+          </span>
+        )}
+      </button>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp,image/gif"
+        className="hidden"
+        onChange={(event) => chooseFile(event.target.files?.[0])}
+      />
+      {file && (
+        <div className="flex items-center justify-between gap-3 border-t border-border px-3 py-2">
+          <p className="min-w-0 truncate text-xs text-muted-foreground">{file.name}</p>
+          <Button type="button" variant="ghost" size="sm" onClick={() => onChange(null)}>
+            Remove
+          </Button>
+        </div>
+      )}
+    </div>
   );
 }
 

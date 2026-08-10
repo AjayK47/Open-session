@@ -35,6 +35,12 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
   cn,
 } from "@opensession/ui";
 import { toast } from "sonner";
@@ -45,6 +51,7 @@ import { WizardShell, type WizardStep } from "../../components/wizard-shell";
 import { ConditionalRuleEditor, RoutingRuleEditor } from "./RuleBuilder";
 import { DynamicForm } from "./DynamicForm";
 import { RichTextEditor } from "../../components/rich-text-editor";
+import { ClearableDateTime } from "../../components/form-field";
 
 const STEPS: WizardStep[] = [
   { key: "setup", label: "Submission Setup", description: "Submission type and participants", icon: Sparkles },
@@ -125,6 +132,8 @@ export function FormBuilderPage() {
   const [step, setStep] = useState("setup");
   const [draft, setDraft] = useState<SubmissionFormInput>(emptyDraft());
   const [previewOpen, setPreviewOpen] = useState(true);
+  const [fieldDialogOpen, setFieldDialogOpen] = useState(false);
+  const [roleDialogOpen, setRoleDialogOpen] = useState(false);
 
   const { data: existing } = useQuery({
     queryKey: ["forms", "detail", formId],
@@ -185,8 +194,20 @@ export function FormBuilderPage() {
     fields[index] = { ...fields[index]!, ...patch };
     updateSection({ fields });
   }
-  function addField() {
-    const fields = [...(section.fields ?? []), { key: `field_${Date.now()}`, label: "New field", field_type: "short_text", required: false } as FieldConfig];
+  function addField(input: { label: string; fieldType: string; required: boolean }) {
+    const baseKey = input.label
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "_")
+      .replace(/^_+|_+$/g, "") || "field";
+    const existingKeys = new Set((section.fields ?? []).map((field) => field.key));
+    let key = baseKey;
+    let suffix = 2;
+    while (existingKeys.has(key)) key = `${baseKey}_${suffix++}`;
+    const fields = [
+      ...(section.fields ?? []),
+      { key, label: input.label.trim(), field_type: input.fieldType, required: input.required } as FieldConfig,
+    ];
     updateSection({ fields });
   }
   function removeField(index: number) {
@@ -341,7 +362,7 @@ export function FormBuilderPage() {
               </div>
               <div className="flex items-center justify-between border-t border-border pt-4">
                 <h3 className="text-base font-semibold text-foreground">Form Questions</h3>
-                <Button size="sm" variant="outline" onClick={addField}>
+                <Button size="sm" variant="outline" onClick={() => setFieldDialogOpen(true)}>
                   <Plus className="h-4 w-4" />
                   Add Field
                 </Button>
@@ -376,7 +397,7 @@ export function FormBuilderPage() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setDraft((d) => ({ ...d, participant_roles: [...(d.participant_roles ?? []), { role: "co-speaker", min: 0, max: 3 }] }))}
+                onClick={() => setRoleDialogOpen(true)}
               >
                 <Plus className="h-4 w-4" />
                 Add role
@@ -409,11 +430,17 @@ export function FormBuilderPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <Label>Open date</Label>
-                  <Input type="datetime-local" value={draft.open_at ?? ""} onChange={(e) => setDraft((d) => ({ ...d, open_at: e.target.value || null }))} />
+                  <ClearableDateTime
+                    value={draft.open_at ?? ""}
+                    onChange={(value) => setDraft((d) => ({ ...d, open_at: value || null }))}
+                  />
                 </div>
                 <div className="space-y-1.5">
                   <Label>Close date</Label>
-                  <Input type="datetime-local" value={draft.close_at ?? ""} onChange={(e) => setDraft((d) => ({ ...d, close_at: e.target.value || null }))} />
+                  <ClearableDateTime
+                    value={draft.close_at ?? ""}
+                    onChange={(value) => setDraft((d) => ({ ...d, close_at: value || null }))}
+                  />
                 </div>
               </div>
               <div className="space-y-1.5">
@@ -464,6 +491,22 @@ export function FormBuilderPage() {
           </div>
         )}
       </div>
+      <AddFieldDialog
+        open={fieldDialogOpen}
+        onOpenChange={setFieldDialogOpen}
+        onAdd={addField}
+      />
+      <AddRoleDialog
+        open={roleDialogOpen}
+        onOpenChange={setRoleDialogOpen}
+        existingRoles={(draft.participant_roles ?? []).map((role) => role.role)}
+        onAdd={(role) =>
+          setDraft((current) => ({
+            ...current,
+            participant_roles: [...(current.participant_roles ?? []), role],
+          }))
+        }
+      />
     </WizardShell>
   );
 }
@@ -562,23 +605,204 @@ function FieldRow({ field, onChange, onRemove }: { field: FieldConfig; onChange:
 
 function RoleRow({ role, onChange, onRemove }: { role: ParticipantRoleConfig; onChange: (patch: Partial<ParticipantRoleConfig>) => void; onRemove: () => void }) {
   return (
-    <div className="flex items-center gap-2.5 rounded-lg border border-border p-3">
-      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent text-accent-foreground">
+    <div className="flex items-end gap-3 rounded-xl border border-border bg-card p-4 shadow-xs">
+      <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-accent text-accent-foreground">
         <Check className="h-4 w-4" />
       </span>
-      <Input value={role.role} onChange={(e) => onChange({ role: e.target.value })} className="h-8 min-w-0 flex-1" placeholder="Role name" />
-      <div className="shrink-0 space-y-1">
-        <p className="text-[11px] text-muted-foreground">Min</p>
-        <Input type="number" value={role.min ?? 0} onChange={(e) => onChange({ min: Number(e.target.value) })} className="h-8 w-14 px-2" />
+      <div className="grid min-w-0 flex-1 gap-3 sm:grid-cols-[minmax(0,1fr)_5rem_5rem]">
+        <div className="min-w-0 space-y-1.5">
+          <Label className="text-xs text-muted-foreground">Role</Label>
+          <Input value={role.role} onChange={(e) => onChange({ role: e.target.value })} className="min-w-0" placeholder="Role name" />
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-xs text-muted-foreground">Min</Label>
+          <Input min={0} type="number" value={role.min ?? 0} onChange={(e) => onChange({ min: Number(e.target.value) })} className="px-2" />
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-xs text-muted-foreground">Max</Label>
+          <Input min={1} type="number" value={role.max ?? 1} onChange={(e) => onChange({ max: Number(e.target.value) })} className="px-2" />
+        </div>
       </div>
-      <div className="shrink-0 space-y-1">
-        <p className="text-[11px] text-muted-foreground">Max</p>
-        <Input type="number" value={role.max ?? 1} onChange={(e) => onChange({ max: Number(e.target.value) })} className="h-8 w-14 px-2" />
-      </div>
-      <Button type="button" variant="ghost" size="icon" className="shrink-0 self-end" onClick={onRemove}>
+      <Button type="button" variant="ghost" size="icon" className="shrink-0" onClick={onRemove} aria-label={`Delete ${role.role} role`}>
         <Trash2 className="h-4 w-4 text-muted-foreground" />
       </Button>
     </div>
+  );
+}
+
+function AddFieldDialog({
+  open,
+  onOpenChange,
+  onAdd,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onAdd: (input: { label: string; fieldType: string; required: boolean }) => void;
+}) {
+  const [label, setLabel] = useState("");
+  const [fieldType, setFieldType] = useState("short_text");
+  const [required, setRequired] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!open) return;
+    setLabel("");
+    setFieldType("short_text");
+    setRequired(false);
+    setError("");
+  }, [open]);
+
+  function setOpen(next: boolean) {
+    onOpenChange(next);
+  }
+
+  function submit(event: React.FormEvent) {
+    event.preventDefault();
+    if (!label.trim()) {
+      setError("Enter a field name.");
+      return;
+    }
+    onAdd({ label, fieldType, required });
+    onOpenChange(false);
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogContent className="max-w-md">
+        <form onSubmit={submit} className="space-y-5">
+          <DialogHeader>
+            <DialogTitle>Add submission field</DialogTitle>
+            <DialogDescription>Define the question before adding it to the form.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="new-field-label">Field name</Label>
+              <Input
+                id="new-field-label"
+                autoFocus
+                value={label}
+                onChange={(event) => {
+                  setLabel(event.target.value);
+                  setError("");
+                }}
+                placeholder="e.g. What will attendees learn?"
+                aria-invalid={Boolean(error)}
+              />
+              {error && <p className="text-xs text-destructive">{error}</p>}
+            </div>
+            <div className="space-y-1.5">
+              <Label>Field type</Label>
+              <Select value={fieldType} onValueChange={setFieldType}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {FIELD_TYPES.map((type) => (
+                    <SelectItem key={type} value={type}>{FIELD_TYPE_LABELS[type] ?? type}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <label className="flex cursor-pointer items-center justify-between rounded-lg border border-border bg-muted/25 px-3 py-2.5">
+              <span>
+                <span className="block text-sm font-medium text-foreground">Required field</span>
+                <span className="block text-xs text-muted-foreground">Submitters must answer before submitting.</span>
+              </span>
+              <Switch checked={required} onCheckedChange={setRequired} />
+            </label>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+            <Button type="submit">Add field</Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function AddRoleDialog({
+  open,
+  onOpenChange,
+  existingRoles,
+  onAdd,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  existingRoles: string[];
+  onAdd: (role: ParticipantRoleConfig) => void;
+}) {
+  const [name, setName] = useState("");
+  const [minimum, setMinimum] = useState(0);
+  const [maximum, setMaximum] = useState(1);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!open) return;
+    setName("");
+    setMinimum(0);
+    setMaximum(1);
+    setError("");
+  }, [open]);
+
+  function setOpen(next: boolean) {
+    onOpenChange(next);
+  }
+
+  function submit(event: React.FormEvent) {
+    event.preventDefault();
+    const roleName = name.trim();
+    if (!roleName) return setError("Enter a role name.");
+    if (existingRoles.some((role) => role.toLowerCase() === roleName.toLowerCase())) {
+      return setError("That participant role already exists.");
+    }
+    if (!Number.isFinite(minimum) || !Number.isFinite(maximum) || minimum < 0 || maximum < 1 || minimum > maximum) {
+      return setError("Use a minimum of 0 or more and a maximum at least as large as the minimum.");
+    }
+    onAdd({ role: roleName, min: minimum, max: maximum });
+    onOpenChange(false);
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogContent className="max-w-md">
+        <form onSubmit={submit} className="space-y-5">
+          <DialogHeader>
+            <DialogTitle>Add participant role</DialogTitle>
+            <DialogDescription>Name the role and set how many people can be added.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="new-role-name">Role name</Label>
+              <Input
+                id="new-role-name"
+                autoFocus
+                value={name}
+                onChange={(event) => {
+                  setName(event.target.value);
+                  setError("");
+                }}
+                placeholder="e.g. Moderator"
+                aria-invalid={Boolean(error)}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="new-role-min">Minimum</Label>
+                <Input id="new-role-min" min={0} type="number" value={minimum} onChange={(event) => setMinimum(Number(event.target.value))} />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="new-role-max">Maximum</Label>
+                <Input id="new-role-max" min={1} type="number" value={maximum} onChange={(event) => setMaximum(Number(event.target.value))} />
+              </div>
+            </div>
+            {error && <p className="text-xs text-destructive">{error}</p>}
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+            <Button type="submit">Add role</Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
 
