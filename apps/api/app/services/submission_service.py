@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.core.db import utcnow
 from app.email import EmailMessageInput, send_email
+from app.email.templates import submission_received_email
 from app.models.auth import AuditEvent, EmailJobReceipt, RoleBinding, User
 from app.models.cfp import Submission, SubmissionEvent, SubmissionForm
 from app.models.program import Event
@@ -252,24 +253,19 @@ def _send_confirmation(form: SubmissionForm, submission: Submission, repos: Repo
     submitter = repos.people.get(submission.submitter_person_id) if submission.submitter_person_id else None
     event = repos.events.get(form.event_id)
     event_name = event.name if event else "our conference"
-    subject = f"Submission received — {form.public_title}"
-    html = (
-        f"<p>Hi{(' ' + submitter.first_name) if submitter and submitter.first_name else ''},</p>"
-        f"<p>Thanks for submitting <strong>{submission.title or 'your proposal'}</strong> to "
-        f"<strong>{event_name}</strong>. We've received it and will be in touch after review.</p>"
-    )
-    text = (
-        f"Hi{(' ' + submitter.first_name) if submitter and submitter.first_name else ''},\n\n"
-        f'Thanks for submitting "{submission.title or "your proposal"}" to {event_name}. '
-        "We've received it and will be in touch after review."
+    rendered = submission_received_email(
+        event_name=event_name,
+        form_name=form.public_title,
+        recipient_name=submitter.first_name if submitter and submitter.first_name else "",
+        submission_title=submission.title or "Your proposal",
     )
     recipient = (submitter.primary_email if submitter else None) or "noreply@localhost"
     return send_email(
         EmailMessageInput(
             to=recipient,
-            subject=subject,
-            html=html,
-            text=text,
+            subject=rendered.subject,
+            html=rendered.html,
+            text=rendered.text,
             from_name=event.email_sender_name if event and event.email_sender_name else None,
             from_address=event.email_sender_address if event and event.email_sender_address else None,
             reply_to=event.reply_to if event else None,
@@ -831,11 +827,11 @@ def _organizer_message_html(message: str | None) -> str:
     if not message or not message.strip():
         return ""
     body = "".join(
-        f"<p>{html_escape(line)}</p>" for line in message.strip().splitlines() if line.strip()
+        f'<p style="margin:0 0 8px">{html_escape(line)}</p>' for line in message.strip().splitlines() if line.strip()
     )
     return (
-        '<div style="margin:16px 0;padding:12px 16px;border-left:3px solid #d4d4d8;background:#fafafa">'
-        "<p style=\"margin:0 0 8px;font-weight:600\">A note from the organizers</p>"
+        '<div style="margin:20px 0 0;padding:16px 18px;border-left:4px solid #8d9bd2;background:#f5f6fa">'
+        '<p style="margin:0 0 9px;color:#202534;font-size:13px;font-weight:700">A note from the organizers</p>'
         f"{body}</div>"
     )
 

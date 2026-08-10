@@ -1,0 +1,47 @@
+---
+title: Deploy on a VPS
+description: "Run Open Session with Docker Compose, SQLite, local files, Caddy, and automated reminders."
+icon: "server"
+---
+
+The VPS package is the simplest and most portable production target. It runs
+three containers: the FastAPI service, the React/Caddy web service, and a small
+scheduler that checks for due speaker-task reminders once per hour.
+
+## One-command installation
+
+On a Linux server with Docker and the Compose plugin:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/AjayK47/Open-session/main/deploy/install.sh | sh
+```
+
+The installer creates `~/.open-session`, generates session and internal-job
+secrets, downloads the release Compose file, starts the services, and waits for
+the health check. Edit `~/.open-session/.env` to enable email, AI review, or
+connected calendars, then rerun `docker compose up -d` from that directory.
+
+## Build a checkout directly
+
+```bash
+cp deploy/.env.production.example .env
+# Fill in the public URL and secrets.
+docker compose -f compose.yaml -f compose.build.yaml --env-file .env up -d --build
+```
+
+## Persistent state
+
+The `open_session_data` volume contains both `/data/open_session.db` and
+`/data/files`. Back them up together. The scheduler does not own data; it calls
+the protected internal reminder endpoint and relies on delivery receipts to
+avoid duplicate messages.
+
+## Verify
+
+```bash
+docker compose ps
+curl https://sessions.example.com/health
+docker compose logs --tail=200 api scheduler web
+```
+
+Keep `OPEN_SESSION_EVALUATION_MODE=false` on a real installation.

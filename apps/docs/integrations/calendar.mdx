@@ -1,0 +1,49 @@
+---
+title: Calendar connections
+description: "Use open .ics delivery everywhere, with optional Google and Microsoft synchronization through Composio."
+icon: "calendar-sync"
+---
+
+Open Session supports two calendar paths. The baseline path is open and requires
+no provider account; connected calendar synchronization is an optional enhancement.
+
+## Provider-independent `.ics`
+
+Scheduled sessions can be downloaded or attached to speaker email as iCalendar
+events. This path works with Google Calendar, Outlook, Apple Calendar, and other
+clients that understand `.ics` files.
+
+It remains available when no Composio key is configured.
+
+## Connected calendars
+
+Set the following server-side value:
+
+```dotenv
+OPEN_SESSION_COMPOSIO_API_KEY=ak_your_key
+```
+
+The speaker portal then exposes **Connect Google Calendar** and
+**Connect Microsoft Outlook** actions. Composio provides the hosted provider
+consent flow and manages provider tokens.
+
+Each Open Session user UUID is used as a distinct Composio user ID. A returned
+connection is accepted only when it belongs to the signed-in user and expected
+calendar provider.
+
+## Synchronization direction
+
+Synchronization is one way:
+
+```text
+Open Session schedule → speaker calendar
+```
+
+Creating, changing, or removing a scheduled speaker session creates, updates, or
+deletes the corresponding provider event. Changes made directly in a speaker's
+calendar are not imported into the Open Session agenda.
+
+<Note>
+  Organizers do not connect a shared company calendar on behalf of every speaker.
+  Each speaker authorizes their own provider account.
+</Note>

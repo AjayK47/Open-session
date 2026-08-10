@@ -34,5 +34,11 @@ def hash_secret(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
 
 
+def hash_login_code(email: str, code: str) -> str:
+    """Key a low-entropy login code so a leaked database cannot be brute-forced offline."""
+    message = f"{email.lower().strip()}:{code}".encode()
+    return hmac.new(settings.session_secret.encode(), message, hashlib.sha256).hexdigest()
+
+
 def constant_time_equals(a: str, b: str) -> bool:
     return hmac.compare_digest(a, b)

@@ -6,6 +6,7 @@ import { usePortalEvent } from "./usePortalEvent";
 import { EmptyState } from "../../components/empty-state";
 import { PortalPageHeader } from "./PortalPageHeader";
 import { Button } from "@opensession/ui";
+import { sanitizeResourceHtml } from "../../lib/sanitize-html";
 
 /** Read-only wiki/reference pages for speakers (docx §8) — organizer-authored
  *  content, published pages only, rendered as formatted HTML. */
@@ -30,7 +31,7 @@ export function PortalResourcesPage() {
           <h1 className="text-lg font-semibold text-foreground">{open.title}</h1>
           <div
             className="prose prose-sm mt-4 max-w-none text-foreground [&_a]:text-primary [&_iframe]:aspect-video [&_iframe]:w-full [&_iframe]:rounded-lg [&_iframe]:border [&_iframe]:border-border"
-            dangerouslySetInnerHTML={{ __html: open.body_html }}
+            dangerouslySetInnerHTML={{ __html: sanitizeResourceHtml(open.body_html) }}
           />
         </article>
       </div>

@@ -25,7 +25,8 @@ class LoginToken(Base):
     id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
     user_id: Mapped[str] = mapped_column(String(32), index=True, nullable=False)
     email: Mapped[str] = mapped_column(String(254), nullable=False)
-    code: Mapped[str] = mapped_column(String(8), nullable=False)
+    # HMAC-SHA256 digest; the six-digit code itself is never persisted.
+    code: Mapped[str] = mapped_column(String(64), nullable=False)
     expires_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False)
     consumed_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow, nullable=False)

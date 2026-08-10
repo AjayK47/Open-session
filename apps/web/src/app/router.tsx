@@ -1,12 +1,17 @@
 import { lazy, Suspense } from "react";
 import { Routes, Route, Navigate } from "react-router";
 import { RequireAuth, useAuth } from "../lib/auth";
+import { useOrganizationContext } from "../lib/organization";
 import { OrganizerShell } from "../layouts/organizer-shell";
 import { PortalShell } from "../layouts/portal-shell";
 import { ReviewShell } from "../layouts/review-shell";
 import { PublicShell } from "../layouts/public-shell";
 
 const LoginPage = lazy(() => import("../features/auth/LoginPage").then(m => ({ default: m.LoginPage })));
+const LandingPage = lazy(() => import("../features/marketing/LandingPage").then(m => ({ default: m.LandingPage })));
+const OrganizationOnboardingPage = lazy(() => import("../features/organization/OrganizationOnboardingPage").then(m => ({ default: m.OrganizationOnboardingPage })));
+const OrganizationSettingsPage = lazy(() => import("../features/organization/OrganizationSettingsPage").then(m => ({ default: m.OrganizationSettingsPage })));
+const InvitationAcceptPage = lazy(() => import("../features/organization/InvitationAcceptPage").then(m => ({ default: m.InvitationAcceptPage })));
 const EventListPage = lazy(() => import("../features/events/EventListPage").then(m => ({ default: m.EventListPage })));
 const CreateEventPage = lazy(() => import("../features/events/CreateEventPage").then(m => ({ default: m.CreateEventPage })));
 const OverviewPage = lazy(() => import("../features/overview/OverviewPage").then(m => ({ default: m.OverviewPage })));
@@ -76,7 +81,13 @@ function PageLoader() {
 function RootEntry() {
   const { user, isLoading } = useAuth();
   if (isLoading) return <PageLoader />;
-  return user ? <Navigate to="/app/events" replace /> : <PublicLandingPage />;
+  return user ? <AuthenticatedRoot /> : <LandingPage />;
+}
+
+function AuthenticatedRoot() {
+  const { data, isLoading } = useOrganizationContext();
+  if (isLoading) return <PageLoader />;
+  return <Navigate to={data?.needs_onboarding ? "/onboarding" : "/app/events"} replace />;
 }
 
 export function AppRouter() {
@@ -85,6 +96,9 @@ export function AppRouter() {
       <Routes>
         <Route path="/" element={<RootEntry />} />
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/onboarding" element={<RequireAuth redirectTo="/login"><OrganizationOnboardingPage /></RequireAuth>} />
+        <Route path="/invitations/accept" element={<RequireAuth redirectTo="/login"><InvitationAcceptPage /></RequireAuth>} />
+        <Route path="/app/organization" element={<RequireAuth redirectTo="/login"><OrganizationSettingsPage /></RequireAuth>} />
 
         {/* Organizer app */}
         <Route

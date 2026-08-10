@@ -167,8 +167,8 @@ export function ResourcesPage() {
                       className="min-h-40 font-mono text-xs"
                     />
                     <p className="text-xs text-muted-foreground">
-                      Raw HTML, written straight to the page — this is how a Loom recording, a Google Doc, or a
-                      Figma board gets embedded.
+                      Paste trusted embed HTML for Google, YouTube, Vimeo, Loom, Figma, Canva, Slides, or
+                      Speaker Deck. Unsafe markup and unapproved iframe hosts are removed in the speaker portal.
                     </p>
                   </>
                 )}

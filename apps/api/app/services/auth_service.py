@@ -5,8 +5,9 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.core.security import constant_time_equals, new_code, sign_session
+from app.core.security import constant_time_equals, hash_login_code, new_code, sign_session
 from app.email import EmailMessageInput, send_email
+from app.email.templates import sign_in_code_email
 from app.models.auth import LoginToken, RoleBinding, User
 from app.models.auth import Session as DBSession
 from app.repositories import Repositories
@@ -40,24 +41,29 @@ def request_code(db: Session, raw_email: str) -> tuple[str, str | None]:
         db.flush()
 
     code = new_code()
+    # Only the newest code is valid. This prevents an older email from becoming
+    # useful again after the user requests a replacement code.
+    for previous in db.scalars(
+        select(LoginToken).where(LoginToken.user_id == user.id, LoginToken.consumed_at.is_(None))
+    ):
+        previous.consumed_at = _now()
     token = LoginToken(
         user_id=user.id,
         email=email,
-        code=code,
+        code=hash_login_code(email, code),
         expires_at=_now() + timedelta(seconds=settings.login_token_ttl_seconds),
     )
     db.add(token)
     db.commit()
 
     if settings.email_enabled:
+        rendered = sign_in_code_email(code, settings.login_token_ttl_seconds // 60)
         send_email(
             EmailMessageInput(
                 to=email,
-                subject="Your sign-in code",
-                text=(
-                    f"Your Open Session sign-in code is {code}.\n\n"
-                    f"It expires in {settings.login_token_ttl_seconds // 60} minutes."
-                ),
+                subject=rendered.subject,
+                html=rendered.html,
+                text=rendered.text,
             )
         )
         return "If that email is registered, a sign-in code has been sent.", None
@@ -92,7 +98,8 @@ def verify(
         .order_by(LoginToken.created_at.desc())
     )
     tokens = list(db.scalars(stmt))
-    token = next((t for t in tokens if constant_time_equals(t.code, code)), None)
+    submitted_hash = hash_login_code(email, code)
+    token = next((t for t in tokens if constant_time_equals(t.code, submitted_hash)), None)
     if token is None:
         raise HTTPException(status_code=400, detail="Invalid code.")
 

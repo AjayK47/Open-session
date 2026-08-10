@@ -5,16 +5,17 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+from types import SimpleNamespace
 from typing import Any
 
 from fastapi import HTTPException
-from openai import OpenAI
 from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.db import utcnow
+from app.core.outbound_http import request_json
 from app.models.evaluation import AiReviewRun, EvaluationPlan
 from app.repositories import Repositories
 
@@ -36,8 +37,67 @@ class AiReviewOutput(BaseModel):
     flags: list[str] = Field(default_factory=list, max_length=12)
 
 
-def _client() -> OpenAI:
-    return OpenAI(api_key=settings.openai_api_key, timeout=settings.ai_review_timeout_seconds)
+def _response_text(response: dict[str, Any]) -> str:
+    for item in response.get("output", []):
+        for content in item.get("content", []):
+            if content.get("type") == "output_text" and content.get("text"):
+                return content["text"]
+    raise ValueError("Model returned no structured review")
+
+
+def _strict_json_schema(model: type[BaseModel]) -> dict[str, Any]:
+    schema = model.model_json_schema()
+
+    def visit(value: Any) -> None:
+        if isinstance(value, dict):
+            if value.get("type") == "object" or "properties" in value:
+                properties = value.get("properties", {})
+                value["additionalProperties"] = False
+                value["required"] = list(properties)
+            for nested in value.values():
+                visit(nested)
+        elif isinstance(value, list):
+            for nested in value:
+                visit(nested)
+
+    visit(schema)
+    return schema
+
+
+class _ResponsesClient:
+    def parse(self, *, text_format: type[BaseModel], **payload):
+        response = request_json(
+            "POST",
+            "https://api.openai.com/v1/responses",
+            headers={"authorization": f"Bearer {settings.openai_api_key}"},
+            body={
+                **payload,
+                "text": {
+                    "format": {
+                        "type": "json_schema",
+                        "name": "ai_review_output",
+                        "schema": _strict_json_schema(text_format),
+                        "strict": True,
+                    }
+                },
+            },
+            timeout=settings.ai_review_timeout_seconds,
+        )
+        usage = response.get("usage") or {}
+        return SimpleNamespace(
+            id=response.get("id"),
+            output_parsed=text_format.model_validate_json(_response_text(response)),
+            usage=SimpleNamespace(
+                input_tokens=usage.get("input_tokens"),
+                output_tokens=usage.get("output_tokens"),
+            )
+            if usage
+            else None,
+        )
+
+
+def _client():
+    return SimpleNamespace(responses=_ResponsesClient())
 
 
 def _rubric_version(plan: EvaluationPlan) -> str:

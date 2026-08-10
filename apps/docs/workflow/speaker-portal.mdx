@@ -1,0 +1,44 @@
+---
+title: Speaker portal
+description: "Collect speaker profiles, tasks, files, resources, and calendar preferences."
+icon: "contact-round"
+---
+
+Every accepted speaker receives an event-scoped portal at:
+
+```text
+/portal/{event-slug}
+```
+
+The same passwordless account can hold speaker, reviewer, and organizer access.
+
+## What speakers manage
+
+<CardGroup cols={2}>
+  <Card title="Profile" icon="user-round">
+    Biography, headshot, contact details, and public profile information.
+  </Card>
+  <Card title="Tasks" icon="list-checks">
+    Event-specific onboarding requirements and completion status.
+  </Card>
+  <Card title="Files" icon="files">
+    Slides, releases, supporting documents, and organizer-requested uploads.
+  </Card>
+  <Card title="Resources" icon="book-open">
+    Organizer-authored wiki pages, reference material, and sanitized embeds.
+  </Card>
+</CardGroup>
+
+## Readiness tracking
+
+Organizers see each speaker's outstanding task count and readiness state on the
+dashboard and speaker list. Completing a portal assignment updates the organizer
+view from the same stored task record; there is no separate checklist to reconcile.
+
+## Calendar delivery
+
+Every scheduled session can be delivered as a provider-independent `.ics` event.
+If Composio is configured, a speaker may also connect Google Calendar or Microsoft
+Outlook for one-way synchronization from Open Session.
+
+See [Calendar connections](/integrations/calendar) for the connection model.

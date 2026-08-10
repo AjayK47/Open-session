@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_current_user, get_repos, require_event_role, require_person
 from app.core.config import settings
 from app.core.db import get_db
+from app.email.templates import portal_invitation_email
 from app.models.auth import RoleBinding, User
 from app.repositories import Repositories
 from app.schemas.ops import ProfileUpdate, SpeakerCreate, SpeakerOrganizerUpdate
@@ -79,18 +80,24 @@ def invite_speaker(
     speaker = speaker_service.speaker_view(repos, event_id, person_id)
     event = repos.events.get(event_id)
     portal_url = f"{settings.web_app_url.rstrip('/')}/portal/{event.slug}"
+    rendered = portal_invitation_email(
+        event_name=event.name,
+        recipient_name=speaker["first_name"] or "there",
+        portal_url=portal_url,
+    )
     sent = communication_service.send(
         db,
         repos,
         event_id,
         recipient_email=speaker["email"],
         recipient_person_id=person_id,
-        subject=f"Your speaker portal for {event.name}",
+        subject=rendered.subject,
         html=(
             f"<p>Hi {speaker['first_name'] or 'there'},</p>"
             f"<p>Your speaker portal is ready: {event.name}.</p>"
             f"<p><a href='{portal_url}'>Open your speaker portal</a></p>"
         ),
+        text=rendered.text,
     )
     return {"sent": 1, "communication_id": sent.id}
 

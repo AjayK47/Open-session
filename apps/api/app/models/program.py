@@ -19,7 +19,7 @@ class Event(TimestampMixin, Base):
     __tablename__ = "events"
 
     id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
-    organization_id: Mapped[str] = mapped_column(String(64), index=True, nullable=False)
+    organization_id: Mapped[str] = mapped_column(ForeignKey("organizations.id"), index=True, nullable=False)
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     slug: Mapped[str] = mapped_column(String(80), nullable=False, unique=True, index=True)
     type: Mapped[str] = mapped_column(String(32), default="conference", nullable=False)

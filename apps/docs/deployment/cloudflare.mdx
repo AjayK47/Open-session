@@ -1,0 +1,58 @@
+---
+title: Deploy on Cloudflare
+description: "Run Open Session with a Python Worker, D1, R2, Cron Triggers, and Workers Static Assets."
+icon: "cloud"
+---
+
+The Cloudflare deployment runs the same FastAPI routes with a native D1 binding,
+stores uploaded files in R2, serves the React build through Workers Static
+Assets, and invokes reminder delivery with a Cron Trigger.
+
+<Warning>
+  Python Workers are still marked experimental by Cloudflare. The current
+  compressed bundle is about 8.9 MB and requires a paid Workers plan.
+</Warning>
+
+## Prerequisites
+
+- Node.js 22
+- `uv` 0.8 or newer
+- pnpm
+- A D1 database and R2 bucket
+- A Cloudflare API token that can deploy Workers, edit D1, and bind R2
+- A verified Email Sending domain and Email Sending token when delivery is on
+
+## Configure
+
+```bash
+cp deploy/cloudflare/.env.example deploy/cloudflare/.env
+set -a
+. deploy/cloudflare/.env
+set +a
+```
+
+Use `openssl rand -hex 32` for `OPEN_SESSION_SESSION_SECRET`. Add an OpenAI key
+only when AI-assisted review is enabled. Add a Composio key only when speakers
+should see the Google Calendar and Outlook connection buttons; `.ics` files work
+without it.
+
+## Deploy
+
+```bash
+./deploy/cloudflare/deploy.sh
+```
+
+The command builds the web application, initializes a fresh D1 database at the
+current Alembic head (or upgrades an already stamped database) through the
+authenticated D1 API, uploads Worker secrets, packages compatible Python
+dependencies, and deploys the Worker and static assets.
+
+## D1 behavior
+
+The runtime uses a maintained SQLAlchemy D1 dialect over the native Worker
+binding. D1 auto-commits statements, so it cannot provide SQLite's rollback
+semantics across a multi-statement service operation. Use the VPS target if
+strict multi-statement atomicity is a hard requirement.
+
+After deployment, check `/health`, create the first organization, upload and
+download one file, and run the complete organizer/reviewer/speaker flow.

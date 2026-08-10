@@ -1,6 +1,8 @@
+import json
 from datetime import UTC, datetime
 
-from sqlalchemy import DateTime, MetaData, create_engine
+from fastapi import Request
+from sqlalchemy import DateTime, Engine, MetaData, create_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
 from sqlalchemy.types import TypeDecorator
 
@@ -59,8 +61,43 @@ class TimestampMixin:
     updated_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow, onupdate=utcnow, nullable=False)
 
 
-def get_db():
-    db = SessionLocal()
+def _request_engine(request: Request | None) -> Engine:
+    """Return the database engine for the current deployment target.
+
+    A normal Python process uses the configured DB URL. Cloudflare Python
+    Workers expose D1 as a request-scoped binding instead of a filesystem path
+    or network connection string, so the Worker ASGI adapter places `env` in
+    the request scope and we wrap its `DB` binding with the SQLAlchemy dialect.
+    """
+    env = request.scope.get("env") if request is not None else None
+    d1_binding = getattr(env, "DB", None) if env is not None else None
+    if d1_binding is None:
+        return engine
+
+    return create_d1_engine_from_binding(d1_binding)
+
+
+def create_d1_engine_from_binding(binding) -> Engine:
+    from sqlalchemy_cloudflare_d1 import create_engine_from_binding
+
+    d1_engine = create_engine_from_binding(binding)
+    # sqlalchemy-cloudflare-d1 0.3.11 subclasses SQLite's dialect without
+    # initializing the JSON hooks expected by SQLAlchemy's JSON bind type.
+    # Several existing models use JSON columns, so supply SQLite's defaults.
+    d1_engine.dialect._json_serializer = json.dumps
+    d1_engine.dialect._json_deserializer = json.loads
+    return d1_engine
+
+
+def get_db(request: Request):
+    request_engine = _request_engine(request)
+    factory = SessionLocal if request_engine is engine else sessionmaker(
+        bind=request_engine,
+        autoflush=False,
+        autocommit=False,
+        expire_on_commit=False,
+    )
+    db = factory()
     try:
         yield db
     finally:

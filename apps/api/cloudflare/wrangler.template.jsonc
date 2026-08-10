@@ -1,0 +1,43 @@
+{
+  "name": "open-session",
+  "main": "worker.py",
+  "compatibility_date": "2026-08-08",
+  "compatibility_flags": ["python_workers"],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "__D1_DATABASE_NAME__",
+      "database_id": "__D1_DATABASE_ID__"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "FILES",
+      "bucket_name": "__R2_BUCKET_NAME__"
+    }
+  ],
+  "assets": {
+    "directory": "../../../web/dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*", "/internal/*", "/health", "/docs", "/redoc", "/openapi.json"]
+  },
+  "triggers": {
+    "crons": ["0 * * * *"]
+  },
+  "vars": {
+    "OPEN_SESSION_ENVIRONMENT": "production",
+    "OPEN_SESSION_WEB_APP_URL": "__PUBLIC_URL__",
+    "OPEN_SESSION_CORS_ORIGINS": "[\"__PUBLIC_URL__\"]",
+    "OPEN_SESSION_CLOUDFLARE_ACCOUNT_ID": "__CLOUDFLARE_ACCOUNT_ID__",
+    "OPEN_SESSION_EMAIL_PROVIDER": "cloudflare",
+    "OPEN_SESSION_EMAIL_SENDER_NAME": "Open Session",
+    "OPEN_SESSION_EMAIL_SENDER_ADDRESS": "__EMAIL_SENDER_ADDRESS__",
+    "OPEN_SESSION_EMAIL_ENABLED": "__EMAIL_ENABLED__",
+    "OPEN_SESSION_AI_REVIEW_ENABLED": "__AI_REVIEW_ENABLED__",
+    "OPEN_SESSION_AI_REVIEW_MODEL": "__AI_REVIEW_MODEL__"
+  },
+  "observability": {
+    "enabled": true
+  }
+}

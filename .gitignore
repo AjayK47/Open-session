@@ -32,3 +32,8 @@ open_sessionboard_product_plan.md
 # local testing, not part of this submission. Would also push as a broken
 # submodule reference (it has its own .git) rather than real content.
 evals/
+.wrangler/
+apps/api/.dev.vars
+apps/api/.venv-workers/
+apps/api/python_modules/
+apps/api/cloudflare/.build/

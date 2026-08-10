@@ -61,7 +61,7 @@ export function LoginPage() {
     try {
       await authApi.verify(values.email, values.code);
       await refetch();
-      navigate(params.get("next") || "/app/events");
+      navigate(params.get("next") || "/");
     } catch (error) {
       toast.error(error instanceof ApiError ? error.message2 : "Invalid code");
     }

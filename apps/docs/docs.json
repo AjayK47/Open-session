@@ -1,27 +1,81 @@
 {
   "$schema": "https://mintlify.com/docs.json",
-  "theme": "mint",
+  "theme": "aspen",
   "name": "Open Session",
-  "description": "The open-source Sessionboard alternative — API reference and guides.",
+  "description": "Guides and API reference for the open-source event programme manager.",
   "colors": {
-    "primary": "#3B82F6",
+    "primary": "#2563EB",
     "light": "#60A5FA",
-    "dark": "#2563EB"
+    "dark": "#1D4ED8"
+  },
+  "appearance": {
+    "default": "dark",
+    "strict": false
+  },
+  "background": {
+    "color": {
+      "light": "#F8FAFC",
+      "dark": "#0B0D12"
+    },
+    "image": {
+      "light": "/docs-grid-light.svg",
+      "dark": "/docs-grid-dark.svg"
+    }
+  },
+  "fonts": {
+    "heading": {
+      "family": "Geist",
+      "weight": 600
+    },
+    "body": {
+      "family": "Geist",
+      "weight": 400
+    }
+  },
+  "icons": {
+    "library": "lucide"
+  },
+  "styling": {
+    "eyebrows": "breadcrumbs",
+    "codeblocks": "dark"
   },
   "favicon": "/favicon.svg",
   "navigation": {
     "tabs": [
       {
         "tab": "Guides",
+        "icon": "book-open",
         "groups": [
           {
-            "group": "Get started",
-            "pages": ["introduction", "quickstart", "authentication"]
+            "group": "Start",
+            "icon": "play",
+            "pages": ["introduction", "quickstart", "configuration"]
+          },
+          {
+            "group": "Run the programme",
+            "icon": "calendar-range",
+            "pages": [
+              "workflow/call-for-papers",
+              "workflow/review-and-decisions",
+              "workflow/speaker-portal",
+              "workflow/agenda-and-publishing"
+            ]
+          },
+          {
+            "group": "Integrations",
+            "icon": "plug",
+            "pages": ["authentication", "integrations/calendar", "integrations/email"]
+          },
+          {
+            "group": "Deployment",
+            "icon": "server",
+            "pages": ["deployment/vps", "deployment/cloudflare"]
           }
         ]
       },
       {
-        "tab": "API Reference",
+        "tab": "API reference",
+        "icon": "braces",
         "openapi": "openapi.json"
       }
     ]

@@ -1,0 +1,63 @@
+---
+title: Configuration
+description: "Configure the database, sessions, storage, email, AI review, calendars, and production safeguards."
+icon: "settings-2"
+---
+
+Open Session reads API configuration from `apps/api/.env`. Every setting uses the
+`OPEN_SESSION_` prefix.
+
+## Required for production
+
+| Setting | Purpose |
+| --- | --- |
+| `OPEN_SESSION_ENVIRONMENT=production` | Enables production safety checks |
+| `OPEN_SESSION_DATABASE_URL` | SQLite locally/VPS; Cloudflare injects the D1 binding |
+| `OPEN_SESSION_SESSION_SECRET` | Signs revocable HTTP-only sessions |
+| `OPEN_SESSION_CORS_ORIGINS` | Allows only the deployed web origins |
+| `OPEN_SESSION_EMAIL_ENABLED=true` | Delivers sign-in codes and notifications |
+| `OPEN_SESSION_EMAIL_SENDER_ADDRESS` | Verified sender address |
+| `OPEN_SESSION_WEB_APP_URL` | Public URL used in redirects and email links |
+
+<Warning>
+  Replace the development session secret before exposing the API. Keep email,
+  OpenAI, Cloudflare, and Composio credentials on the server.
+</Warning>
+
+## Optional capabilities
+
+<AccordionGroup>
+  <Accordion title="AI-assisted review">
+    Set `OPEN_SESSION_AI_REVIEW_ENABLED=true`, provide
+    `OPEN_SESSION_OPENAI_API_KEY`, and choose
+    `OPEN_SESSION_AI_REVIEW_MODEL`. Human reviewers can still override an AI run.
+  </Accordion>
+  <Accordion title="Connected calendars">
+    Provide `OPEN_SESSION_COMPOSIO_API_KEY` to show Google Calendar and Microsoft
+    Outlook connection controls in the speaker portal. Without it, `.ics`
+    downloads and email attachments continue to work.
+  </Accordion>
+  <Accordion title="File storage">
+    `OPEN_SESSION_FILES_STORAGE_DIR` controls the VPS file adapter. Cloudflare
+    deployments use the `FILES` R2 binding instead. Back up local database and
+    files at the same point in time.
+  </Accordion>
+  <Accordion title="Evaluation mode">
+    `OPEN_SESSION_EVALUATION_MODE=true` exposes seeded evaluator personas. Keep it
+    disabled on normal production deployments.
+  </Accordion>
+</AccordionGroup>
+
+## Release sequence
+
+Production startup does not mutate database tables. Apply migrations first:
+
+```bash
+cd apps/api
+OPEN_SESSION_ENVIRONMENT=production uv run alembic upgrade head
+```
+
+Then start the API and verify `/health` before routing traffic to the release.
+
+Continue with [VPS deployment](/deployment/vps) or
+[Cloudflare deployment](/deployment/cloudflare).

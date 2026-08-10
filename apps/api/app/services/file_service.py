@@ -3,7 +3,7 @@ from pathlib import Path
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
-from app.core.config import settings
+from app.core.blob_storage import BlobStorage
 from app.core.security import new_id
 from app.repositories import Repositories
 
@@ -43,18 +43,6 @@ ALLOWED_EXTENSIONS: dict[str, set[str]] = {
     "supporting": {".pdf", ".doc", ".docx", ".txt", ".jpg", ".jpeg", ".png"},
     "submission": {".pdf", ".doc", ".docx", ".txt"},
 }
-
-
-def _root() -> Path:
-    root = Path(settings.files_storage_dir)
-    root.mkdir(parents=True, exist_ok=True)
-    return root
-
-
-def _path_for(event_id: str, file_id: str) -> Path:
-    directory = _root() / event_id
-    directory.mkdir(parents=True, exist_ok=True)
-    return directory / file_id
 
 
 def upload_intent(db: Session, repos: Repositories, event_id: str, payload) -> dict:
@@ -99,7 +87,13 @@ def upload_intent(db: Session, repos: Repositories, event_id: str, payload) -> d
     return {"id": file.id, "upload_url": f"/api/v1/files/{file.id}/content"}
 
 
-def store_content(db: Session, repos: Repositories, file_id: str, content: bytes) -> dict:
+async def store_content(
+    db: Session,
+    repos: Repositories,
+    storage: BlobStorage,
+    file_id: str,
+    content: bytes,
+) -> dict:
     file = repos.files.get(file_id)
     if file is None:
         raise HTTPException(status_code=404, detail="File not found")
@@ -107,8 +101,7 @@ def store_content(db: Session, repos: Repositories, file_id: str, content: bytes
         raise HTTPException(status_code=413, detail="File too large (max 50 MB).")
     if not _matches_file_signature(file.filename, file.content_type, content):
         raise HTTPException(status_code=400, detail="File content does not match its declared type.")
-    path = _path_for(file.event_id, file.id)
-    path.write_bytes(content)
+    await storage.put(file.storage_key, content)
     file.size_bytes = len(content)
 
     _apply_versioning(repos, file)
@@ -167,23 +160,20 @@ def _apply_versioning(repos: Repositories, file) -> None:
     file.replaces_file_id = previous.id
 
 
-def download(repos: Repositories, file_id: str):
+async def download(repos: Repositories, storage: BlobStorage, file_id: str):
     file = repos.files.get(file_id)
     if file is None:
         raise HTTPException(status_code=404, detail="File not found")
-    path = _path_for(file.event_id, file.id)
-    if not path.exists():
+    content = await storage.get(file.storage_key)
+    if content is None:
         raise HTTPException(status_code=404, detail="File content not found")
-    content = path.read_bytes()
     return file, content
 
 
-def delete(db: Session, repos: Repositories, file_id: str) -> None:
+async def delete(db: Session, repos: Repositories, storage: BlobStorage, file_id: str) -> None:
     file = repos.files.get(file_id)
     if file is None:
         raise HTTPException(status_code=404, detail="File not found")
-    path = _path_for(file.event_id, file.id)
-    if path.exists():
-        path.unlink()
+    await storage.delete(file.storage_key)
     repos.files.delete(file_id)
     db.commit()

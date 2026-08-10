@@ -19,6 +19,7 @@ import {
   Mail,
   PartyPopper,
   Save,
+  UserRound,
   Users,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -42,7 +43,16 @@ export function PublicCfpPage() {
   const [answers, setAnswers] = useState<Record<string, unknown>>({});
   const [participants, setParticipants] = useState<ParticipantInput[]>([]);
   const [devCode, setDevCode] = useState<string | null>(null);
+  // Whether a code was actually requested — distinct from devCode, which is
+  // only populated in dev/evaluation mode. In a real deployment dev_code is
+  // always null, so gating the code-entry form on devCode alone stranded every
+  // real submitter on the email form forever, having already received the code.
+  const [codeSent, setCodeSent] = useState(false);
   const [email, setEmail] = useState("");
+  // Whether we're showing the standalone "what's your name" step after a
+  // successful verify — see verify.onSuccess and the awaitingName StageCard.
+  const [awaitingName, setAwaitingName] = useState(false);
+  const [nameDraft, setNameDraft] = useState({ first_name: "", last_name: "" });
 
   const { data: form, isLoading } = useQuery({
     queryKey: ["public-form", eventSlug, formSlug],
@@ -145,6 +155,7 @@ export function PublicCfpPage() {
     onSuccess: (res, values) => {
       setEmail(values.email);
       setDevCode(res.dev_code ?? null);
+      setCodeSent(true);
       codeForm.setValue("email", values.email);
       toast.success(res.dev_code ? "Dev mode: code shown below" : "Check your email for a code");
     },
@@ -152,16 +163,49 @@ export function PublicCfpPage() {
   });
 
   const verify = useMutation({
+    // Name is no longer collected here — see the awaitingName step below, which
+    // asks for it separately and only when the account doesn't already have one.
     mutationFn: (values: z.infer<typeof verifyCodeSchema>) =>
-      publicApi.verify(eventSlug!, formSlug!, values.email, values.code, {
-        first_name: values.first_name,
-        last_name: values.last_name,
-      }),
+      publicApi.verify(eventSlug!, formSlug!, values.email, values.code),
     onSuccess: async () => {
       await refetch();
-      setStage("submission");
+      // The "resume your draft" prompt only ever rendered on the Welcome step,
+      // which this account couldn't have been recognized on — it wasn't signed
+      // in yet. Someone who verifies mid-flow with an email that already has a
+      // draft on this form must land back on that draft, not a blank one that
+      // would submit as a duplicate. Look it up fresh rather than trusting the
+      // `myDrafts` query cache, which may not have resolved yet.
+      const drafts = await meApi.submissions();
+      const draft = drafts.find((s) => s.form_id === form?.id && s.status === "draft");
+      if (draft) {
+        resumeDraft(draft);
+        toast.success("Welcome back — picked up your saved draft");
+        return;
+      }
+      // No draft to jump back to. Only ask for a name if this account genuinely
+      // doesn't have one yet — a returning speaker (or anyone who already has a
+      // profile from another form/event) goes straight through.
+      const profile = await meApi.profile();
+      if (!profile.first_name && !profile.last_name) {
+        setAwaitingName(true);
+      } else {
+        setStage("submission");
+      }
     },
     onError: (error) => toast.error(error instanceof ApiError ? error.message2 : "Invalid code"),
+  });
+
+  const saveName = useMutation({
+    mutationFn: () =>
+      meApi.updateProfile({
+        first_name: nameDraft.first_name.trim() || null,
+        last_name: nameDraft.last_name.trim() || null,
+      }),
+    onSuccess: () => {
+      setAwaitingName(false);
+      setStage("submission");
+    },
+    onError: (error) => toast.error(error instanceof ApiError ? error.message2 : "Could not save your name"),
   });
 
   const createDraft = useMutation({
@@ -434,17 +478,17 @@ export function PublicCfpPage() {
         <main className="min-w-0">
           <StepProgress steps={STEP_LABELS} activeIndex={activeIndex} />
 
-          {stage === "account" && (
+          {stage === "account" && !awaitingName && (
             <StageCard
               icon={Mail}
               title="Verify your email"
               description={
-                devCode
+                codeSent
                   ? `We sent a 6-digit code to ${email}.`
                   : "We'll email you a one-time code. No password to create or remember."
               }
             >
-              {!devCode ? (
+              {!codeSent ? (
                 <form onSubmit={emailForm.handleSubmit((v) => requestCode.mutate(v))} className="space-y-4">
                   <div className="space-y-1.5">
                     <Label htmlFor="cfp-email">Email address</Label>
@@ -463,24 +507,17 @@ export function PublicCfpPage() {
                   </Button>
                 </form>
               ) : (
+                // Just the code here — nothing else. Asking a *returning* speaker
+                // to also fill in a name while they're trying to authenticate read
+                // as "sign-in is broken, it wants me to sign up again". Name is
+                // its own step now, and only shown at all to people who don't have
+                // one on file yet (see the `awaitingName` branch below).
                 <form onSubmit={codeForm.handleSubmit((v) => verify.mutate(v))} className="space-y-4">
-                  <p className="rounded-md border border-warning/25 bg-warning/10 px-3 py-2 text-xs text-warning">
-                    Development mode — your code is <span className="font-mono font-semibold">{devCode}</span>
-                  </p>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <div className="space-y-1.5">
-                      <Label htmlFor="cfp-first">First name</Label>
-                      <Input id="cfp-first" autoComplete="given-name" placeholder="Priya" {...codeForm.register("first_name")} />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label htmlFor="cfp-last">Last name</Label>
-                      <Input id="cfp-last" autoComplete="family-name" placeholder="Raman" {...codeForm.register("last_name")} />
-                    </div>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Used on the program if this is your first submission. Returning speakers keep the name already on
-                    their profile.
-                  </p>
+                  {devCode && (
+                    <p className="rounded-md border border-warning/25 bg-warning/10 px-3 py-2 text-xs text-warning">
+                      Development mode — your code is <span className="font-mono font-semibold">{devCode}</span>
+                    </p>
+                  )}
                   <div className="space-y-1.5">
                     <Label htmlFor="cfp-code">Sign-in code</Label>
                     <Input
@@ -497,13 +534,68 @@ export function PublicCfpPage() {
                   </Button>
                   <button
                     type="button"
-                    onClick={() => setDevCode(null)}
+                    onClick={() => {
+                      setDevCode(null);
+                      setCodeSent(false);
+                    }}
                     className="w-full text-center text-xs text-muted-foreground underline-offset-4 hover:underline"
                   >
                     Use a different email
                   </button>
                 </form>
               )}
+            </StageCard>
+          )}
+
+          {stage === "account" && awaitingName && (
+            // Reached only once verification has already succeeded, and only for
+            // an account with no name on file at all — a genuinely first-time
+            // submitter. Returning speakers never see this: `verify.onSuccess`
+            // skips straight past it when a profile name already exists.
+            <StageCard icon={UserRound} title="What's your name?" description="Shown on the program if your talk is accepted. You can skip this and add it later from your speaker portal.">
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  saveName.mutate();
+                }}
+                className="space-y-4"
+              >
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="cfp-first">First name</Label>
+                    <Input
+                      id="cfp-first"
+                      autoComplete="given-name"
+                      placeholder="Priya"
+                      value={nameDraft.first_name}
+                      onChange={(e) => setNameDraft((n) => ({ ...n, first_name: e.target.value }))}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="cfp-last">Last name</Label>
+                    <Input
+                      id="cfp-last"
+                      autoComplete="family-name"
+                      placeholder="Raman"
+                      value={nameDraft.last_name}
+                      onChange={(e) => setNameDraft((n) => ({ ...n, last_name: e.target.value }))}
+                    />
+                  </div>
+                </div>
+                <Button type="submit" className="w-full" disabled={saveName.isPending}>
+                  {saveName.isPending ? "Saving…" : "Continue"}
+                </Button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAwaitingName(false);
+                    setStage("submission");
+                  }}
+                  className="w-full text-center text-xs text-muted-foreground underline-offset-4 hover:underline"
+                >
+                  Skip for now
+                </button>
+              </form>
             </StageCard>
           )}
 

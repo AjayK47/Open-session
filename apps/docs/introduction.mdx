@@ -1,33 +1,68 @@
 ---
-title: Introduction
-description: "The REST API behind Open Session — everything the web app does, you can do too."
+title: Open Session
+sidebarTitle: Introduction
+description: "Run calls for papers, reviews, speaker onboarding, scheduling, and public programmes from one open-source workspace."
+icon: "megaphone"
 ---
 
-Open Session is an open-source alternative to Sessionboard: call-for-speakers forms, submission review, a speaker portal, agenda building with conflict detection, and public event widgets. The web app is a client of this same API — nothing it can do is hidden from you.
-
-## What's here
+Open Session is an open-source event programme manager. It keeps the organizer,
+reviewer, speaker, and attendee workflows connected from the first submission to
+the published agenda.
 
 <CardGroup cols={2}>
-  <Card title="Quickstart" icon="rocket" href="/quickstart">
-    Sign in and make your first authenticated request in a few lines.
+  <Card title="Set up locally" icon="terminal" href="/quickstart" horizontal>
+    Start the API and web application, then create the first organization.
   </Card>
-  <Card title="Authentication" icon="key" href="/authentication">
-    Two ways in: session cookies (what the web app uses) or API keys (for scripts and integrations).
-  </Card>
-  <Card title="API Reference" icon="code" href="/api-reference">
-    Every endpoint, generated straight from the running server's OpenAPI schema — this reference can never drift from what's actually deployed.
+  <Card title="Configure a deployment" icon="settings-2" href="/configuration" horizontal>
+    Understand the database, authentication, email, AI, calendar, and file settings.
   </Card>
 </CardGroup>
 
-## The shape of the API
+## One continuous programme workflow
 
-Everything is scoped under one of a few roots:
+<Steps>
+  <Step title="Collect proposals">
+    Build a call-for-papers form with sections, participant roles, conditional
+    fields, submission limits, and category-based routing.
+  </Step>
+  <Step title="Review and decide">
+    Define weighted criteria, assign reviewers, run multiple evaluation rounds,
+    and optionally request an AI-assisted assessment.
+  </Step>
+  <Step title="Prepare speakers">
+    Accepted speakers use their own portal for profiles, headshots, files,
+    onboarding tasks, resources, and calendar connections.
+  </Step>
+  <Step title="Schedule and publish">
+    Place sessions across rooms and tracks, resolve conflicts, publish the
+    agenda, and embed the public schedule, gallery, or itinerary.
+  </Step>
+</Steps>
 
-| Root | Who calls it |
-|---|---|
-| `/api/v1/events/{event_id}/...` | Organizers managing one event — forms, sessions, speakers, evaluations, agenda |
-| `/api/v1/me/...` | The signed-in speaker or reviewer, scoped to their own data |
-| `/api/v1/public/...` | Anonymous — the CFP submission form and the five public widgets (sessions, speakers, agenda, itinerary, gallery). No auth required. |
-| `/api/v1/auth/...` | Sign-in: request a one-time code, verify it, log out |
+## Choose where to begin
 
-Public read endpoints (`/api/v1/public/events/{slug}/program` and friends) never require authentication — that's what backs the embeddable widgets. Everything else needs either a session cookie or an API key.
+<CardGroup cols={2}>
+  <Card title="Call for papers" icon="file-input" href="/workflow/call-for-papers">
+    Design, publish, and route proposal forms.
+  </Card>
+  <Card title="Review and decisions" icon="scale" href="/workflow/review-and-decisions">
+    Assign reviewers and move proposals through evaluation rounds.
+  </Card>
+  <Card title="Speaker portal" icon="contact-round" href="/workflow/speaker-portal">
+    Collect profiles, tasks, files, and supporting material.
+  </Card>
+  <Card title="Agenda and publishing" icon="calendar-clock" href="/workflow/agenda-and-publishing">
+    Build a conflict-free programme and publish it to attendees.
+  </Card>
+</CardGroup>
+
+## API access is built in
+
+The React application uses the same REST API available to integrations. Human
+users can authenticate with a session cookie, server-to-server integrations can
+use scoped API keys, and public programme endpoints require no authentication.
+
+<Note>
+  The complete endpoint reference is generated from `openapi.json`, so request
+  and response schemas stay aligned with the backend contract.
+</Note>

@@ -1,33 +1,82 @@
 ---
-title: Quickstart
-description: "Sign in and read your first event in under a minute."
+title: Local quickstart
+sidebarTitle: Quickstart
+description: "Run Open Session locally and create the first organization."
+icon: "terminal"
 ---
 
-<Steps>
-  <Step title="Sign in">
-    ```bash
-    curl -X POST https://your-deployment/api/v1/auth/request-code \
-      -H "Content-Type: application/json" \
-      -d '{"email": "you@example.com"}'
-    # {"message": "Code generated (email delivery disabled).", "dev_code": "482913"}
+## Prerequisites
 
-    curl -X POST https://your-deployment/api/v1/auth/verify \
-      -H "Content-Type: application/json" -c cookies.txt \
-      -d '{"email": "you@example.com", "code": "482913"}'
+- Node.js 20 or newer
+- pnpm
+- Python 3.12 or newer
+- [uv](https://docs.astral.sh/uv/)
+
+## Start the application
+
+<Steps>
+  <Step title="Install dependencies">
+    From the repository root:
+
+    ```bash
+    pnpm install
+    cd apps/api && uv sync && cd ../..
     ```
   </Step>
-  <Step title="List your events">
+  <Step title="Create the API environment file">
     ```bash
-    curl https://your-deployment/api/v1/events -b cookies.txt
+    cp apps/api/.env.example apps/api/.env
+    ```
+
+    The defaults use SQLite, local file storage, and development sign-in codes.
+    No email or third-party credentials are required for the first local run.
+  </Step>
+  <Step title="Apply database migrations">
+    ```bash
+    cd apps/api
+    uv run alembic upgrade head
+    cd ../..
     ```
   </Step>
-  <Step title="Read the public program — no auth at all">
-    Every event with a published agenda exposes a read-only program feed, which is what the five embeddable widgets (sessions, speakers, agenda, itinerary, gallery) are built on:
+  <Step title="Start the API">
     ```bash
-    curl https://your-deployment/api/v1/public/events/{event-slug}/program
+    pnpm dev:api
     ```
-    Returns approved sessions, their speakers, tracks, formats, and rooms — one consistent payload so every embedded widget shows identical data.
+
+    The API runs at `http://127.0.0.1:8000`. FastAPI's local reference is at
+    `http://127.0.0.1:8000/docs`.
+  </Step>
+  <Step title="Start the web application">
+    In a second terminal:
+
+    ```bash
+    pnpm dev
+    ```
+
+    Open `http://localhost:5173`.
+  </Step>
+  <Step title="Create the organization">
+    Enter an email address on the sign-in page. In development, the one-time
+    code is returned by the API and shown in the interface. The first signed-in
+    user creates the deployment's organization and becomes its owner.
   </Step>
 </Steps>
 
-From here, the [API Reference](/api-reference) covers every endpoint — submission forms, evaluation plans, agenda scheduling, file uploads, communications, all generated directly from the deployed server's own schema.
+## Verify the installation
+
+```bash
+curl http://127.0.0.1:8000/health
+```
+
+The expected response is:
+
+```json
+{"ok":"true","environment":"development"}
+```
+
+<Warning>
+  Development codes must not be exposed in production. Production startup also
+  requires email delivery and a non-default session secret.
+</Warning>
+
+Continue with [Configuration](/configuration) before deploying outside your machine.

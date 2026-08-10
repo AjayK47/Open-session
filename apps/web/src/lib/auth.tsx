@@ -56,7 +56,7 @@ export function RequireAuth({ children, redirectTo }: PropsWithChildren<{ redire
 
   if (isLoading) return null;
   if (!user) {
-    return <Navigate to={`${redirectTo}?next=${encodeURIComponent(location.pathname)}`} replace />;
+    return <Navigate to={`${redirectTo}?next=${encodeURIComponent(location.pathname + location.search)}`} replace />;
   }
   return <>{children}</>;
 }

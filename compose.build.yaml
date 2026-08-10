@@ -1,0 +1,15 @@
+services:
+  api:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+
+  scheduler:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile

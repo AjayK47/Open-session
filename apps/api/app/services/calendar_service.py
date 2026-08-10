@@ -1,200 +1,251 @@
-"""Speaker-owned Google Calendar and Microsoft Graph synchronization."""
+"""Optional one-way speaker calendar synchronization through Composio."""
 
 from __future__ import annotations
 
-import base64
-import hashlib
-import secrets
-from datetime import timedelta
+import json
+from types import SimpleNamespace
 from typing import Any, Literal
-from urllib.parse import quote, urlencode
+from urllib.parse import urlencode
 from zoneinfo import ZoneInfo
 
-import httpx
-from cryptography.fernet import Fernet, InvalidToken
 from fastapi import HTTPException
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.db import utcnow
+from app.core.outbound_http import request_json
 from app.models.auth import User
-from app.models.calendar import CalendarConnection, CalendarEventLink, CalendarOAuthState
+from app.models.calendar import CalendarConnection, CalendarEventLink
 from app.repositories import Repositories
 
 CalendarProvider = Literal["google", "microsoft"]
-GOOGLE_SCOPE = "openid email https://www.googleapis.com/auth/calendar.events"
-MICROSOFT_SCOPE = "openid email offline_access User.Read Calendars.ReadWrite"
+
+PROVIDER_CONFIG = {
+    "google": {
+        "toolkit": "googlecalendar",
+        "version": "20260721_00",
+        "create": "GOOGLECALENDAR_CREATE_EVENT",
+        "update": "GOOGLECALENDAR_PATCH_EVENT",
+        "delete": "GOOGLECALENDAR_DELETE_EVENT",
+    },
+    "microsoft": {
+        "toolkit": "outlook",
+        "version": "20260724_00",
+        "create": "OUTLOOK_CALENDAR_CREATE_EVENT",
+        "update": "OUTLOOK_UPDATE_CALENDAR_EVENT",
+        "delete": "OUTLOOK_DELETE_CALENDAR_EVENT",
+    },
+}
 
 
-def _http() -> httpx.Client:
-    return httpx.Client(timeout=20.0)
+def is_available() -> bool:
+    return bool(settings.composio_api_key)
 
 
-def _fernet() -> Fernet:
-    key = base64.urlsafe_b64encode(hashlib.sha256(settings.session_secret.encode()).digest())
-    return Fernet(key)
+class _HttpSession:
+    def __init__(self, client: ComposioHttpClient, session_id: str):
+        self.client = client
+        self.session_id = session_id
+
+    def authorize(self, toolkit: str, callback_url: str):
+        data = self.client._request(
+            "POST",
+            f"/tool_router/session/{self.session_id}/link",
+            {"toolkit": toolkit, "callback_url": callback_url},
+        )
+        return SimpleNamespace(
+            redirect_url=data.get("redirect_url"),
+            connected_account_id=data.get("connected_account_id"),
+        )
 
 
-def _encrypt(value: str) -> str:
-    return _fernet().encrypt(value.encode()).decode()
+class _HttpSessions:
+    def __init__(self, client: ComposioHttpClient):
+        self.client = client
+
+    def create(self, *, user_id: str, toolkits: list[str], manage_connections: bool):
+        data = self.client._request(
+            "POST",
+            "/tool_router/session",
+            {
+                "user_id": user_id,
+                "toolkits": {"enabled": toolkits},
+                "manage_connections": {"enable": manage_connections},
+            },
+        )
+        return _HttpSession(self.client, data["session_id"])
 
 
-def _decrypt(value: str) -> str:
+class _HttpConnectedAccounts:
+    def __init__(self, client: ComposioHttpClient):
+        self.client = client
+
+    def get(self, connected_account_id: str):
+        return self.client._request("GET", f"/connected_accounts/{connected_account_id}")
+
+    def delete(self, connected_account_id: str, *, revoke_on_delete: bool):
+        if revoke_on_delete:
+            self.client._request("POST", f"/connected_accounts/{connected_account_id}/revoke", {})
+        return self.client._request("DELETE", f"/connected_accounts/{connected_account_id}")
+
+
+class _HttpTools:
+    def __init__(self, client: ComposioHttpClient):
+        self.client = client
+
+    def execute(
+        self,
+        slug: str,
+        arguments: dict,
+        *,
+        user_id: str,
+        connected_account_id: str,
+        version: str,
+    ):
+        return self.client._request(
+            "POST",
+            f"/tools/execute/{slug}",
+            {
+                "arguments": arguments,
+                "user_id": user_id,
+                "connected_account_id": connected_account_id,
+                "version": version,
+            },
+        )
+
+
+class ComposioHttpClient:
+    """Small REST client covering only the calendar operations Open Session uses."""
+
+    def __init__(self, api_key: str):
+        self.api_key = api_key
+        self.sessions = _HttpSessions(self)
+        self.connected_accounts = _HttpConnectedAccounts(self)
+        self.tools = _HttpTools(self)
+
+    def _request(self, method: str, path: str, body: dict | None = None) -> dict[str, Any]:
+        return request_json(
+            method,
+            f"https://backend.composio.dev/api/v3.1{path}",
+            headers={"x-api-key": self.api_key},
+            body=body,
+        )
+
+
+def _client() -> ComposioHttpClient:
+    if not is_available():
+        raise HTTPException(status_code=503, detail="Connected calendar synchronization is not configured.")
+    return ComposioHttpClient(api_key=settings.composio_api_key)
+
+
+def _provider(provider: CalendarProvider) -> dict[str, str]:
+    return PROVIDER_CONFIG[provider]
+
+
+def _validate_return_path(return_path: str) -> None:
+    if not return_path.startswith("/portal/") or return_path.startswith("//"):
+        raise HTTPException(status_code=400, detail="Calendar connections must return to the speaker portal.")
+
+
+def start_connection(user: User, provider: CalendarProvider, return_path: str) -> dict[str, str]:
+    _validate_return_path(return_path)
+    config = _provider(provider)
+    callback_query = urlencode({"calendar_provider": provider})
+    callback_url = f"{settings.web_app_url.rstrip('/')}{return_path}?{callback_query}"
     try:
-        return _fernet().decrypt(value.encode()).decode()
-    except InvalidToken as exc:
-        raise HTTPException(status_code=503, detail="Stored calendar credentials cannot be decrypted.") from exc
+        composio_session = _client().sessions.create(
+            user_id=user.id,
+            toolkits=[config["toolkit"]],
+            manage_connections=False,
+        )
+        request = composio_session.authorize(config["toolkit"], callback_url=callback_url)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail="Composio could not start the calendar connection.") from exc
+    return {"authorization_url": request.redirect_url}
 
 
-def _provider_config(provider: CalendarProvider) -> tuple[str, str]:
-    if provider == "google":
-        client_id, client_secret = settings.google_calendar_client_id, settings.google_calendar_client_secret
-    else:
-        client_id, client_secret = settings.microsoft_calendar_client_id, settings.microsoft_calendar_client_secret
-    if not client_id or not client_secret:
-        raise HTTPException(status_code=503, detail=f"{provider.title()} Calendar OAuth is not configured.")
-    return client_id, client_secret
+def _value(value: Any, name: str, default: Any = None) -> Any:
+    if isinstance(value, dict):
+        return value.get(name, default)
+    return getattr(value, name, default)
 
 
-def _redirect_uri(provider: CalendarProvider) -> str:
-    return f"{settings.api_public_url.rstrip('/')}/api/v1/calendar/oauth/{provider}/callback"
+def _find_email(value: Any) -> str | None:
+    if hasattr(value, "model_dump"):
+        value = value.model_dump()
+    if isinstance(value, dict):
+        for key in ("email", "email_address", "emailAddress", "mail", "userPrincipalName"):
+            candidate = value.get(key)
+            if isinstance(candidate, str) and "@" in candidate:
+                return candidate
+        for nested in value.values():
+            found = _find_email(nested)
+            if found:
+                return found
+    elif isinstance(value, list):
+        for nested in value:
+            found = _find_email(nested)
+            if found:
+                return found
+    return None
 
 
-def start_oauth(
+def complete_connection(
     db: Session,
     user: User,
     provider: CalendarProvider,
-    return_path: str,
-) -> dict[str, str]:
-    if not return_path.startswith("/portal/") or return_path.startswith("//"):
-        raise HTTPException(status_code=400, detail="Calendar connections must return to the speaker portal.")
-    client_id, _ = _provider_config(provider)
-    state = secrets.token_urlsafe(32)
-    verifier = secrets.token_urlsafe(64)
-    challenge = base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest()).rstrip(b"=").decode()
-    db.add(
-        CalendarOAuthState(
-            state=state,
-            user_id=user.id,
-            provider=provider,
-            code_verifier=verifier,
-            return_path=return_path,
-            expires_at=utcnow() + timedelta(minutes=10),
-        )
-    )
-    db.commit()
-
-    if provider == "google":
-        base = "https://accounts.google.com/o/oauth2/v2/auth"
-        params = {
-            "client_id": client_id,
-            "redirect_uri": _redirect_uri(provider),
-            "response_type": "code",
-            "scope": GOOGLE_SCOPE,
-            "access_type": "offline",
-            "prompt": "consent",
-            "include_granted_scopes": "true",
-            "state": state,
-            "code_challenge": challenge,
-            "code_challenge_method": "S256",
-        }
-    else:
-        tenant = quote(settings.microsoft_calendar_tenant, safe="")
-        base = f"https://login.microsoftonline.com/{tenant}/oauth2/v2.0/authorize"
-        params = {
-            "client_id": client_id,
-            "redirect_uri": _redirect_uri(provider),
-            "response_type": "code",
-            "response_mode": "query",
-            "scope": MICROSOFT_SCOPE,
-            "state": state,
-            "code_challenge": challenge,
-            "code_challenge_method": "S256",
-        }
-    return {"authorization_url": f"{base}?{urlencode(params)}"}
-
-
-def _token_url(provider: CalendarProvider) -> str:
-    if provider == "google":
-        return "https://oauth2.googleapis.com/token"
-    tenant = quote(settings.microsoft_calendar_tenant, safe="")
-    return f"https://login.microsoftonline.com/{tenant}/oauth2/v2.0/token"
-
-
-def _token_exchange(provider: CalendarProvider, code: str, verifier: str) -> dict[str, Any]:
-    client_id, client_secret = _provider_config(provider)
-    response = _http().post(
-        _token_url(provider),
-        data={
-            "client_id": client_id,
-            "client_secret": client_secret,
-            "code": code,
-            "code_verifier": verifier,
-            "redirect_uri": _redirect_uri(provider),
-            "grant_type": "authorization_code",
-        },
-    )
-    response.raise_for_status()
-    return response.json()
-
-
-def _account_email(provider: CalendarProvider, access_token: str) -> str | None:
-    headers = {"Authorization": f"Bearer {access_token}"}
-    if provider == "google":
-        response = _http().get("https://openidconnect.googleapis.com/v1/userinfo", headers=headers)
-        response.raise_for_status()
-        return response.json().get("email")
-    response = _http().get(
-        "https://graph.microsoft.com/v1.0/me?$select=mail,userPrincipalName", headers=headers
-    )
-    response.raise_for_status()
-    data = response.json()
-    return data.get("mail") or data.get("userPrincipalName")
-
-
-def complete_oauth(db: Session, provider: CalendarProvider, state_value: str, code: str) -> tuple[User, str]:
-    oauth_state = db.get(CalendarOAuthState, state_value)
-    if (
-        oauth_state is None
-        or oauth_state.provider != provider
-        or oauth_state.consumed_at is not None
-        or oauth_state.expires_at < utcnow()
-    ):
-        raise HTTPException(status_code=400, detail="Calendar authorization state is invalid or expired.")
-
+    connected_account_id: str,
+) -> CalendarConnection:
+    config = _provider(provider)
     try:
-        token = _token_exchange(provider, code, oauth_state.code_verifier)
-        access_token = token["access_token"]
-        account_email = _account_email(provider, access_token)
-    except (httpx.HTTPError, KeyError) as exc:
-        raise HTTPException(status_code=502, detail="Calendar provider token exchange failed.") from exc
+        account = _client().connected_accounts.get(connected_account_id)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail="Composio could not verify the connected account.") from exc
+
+    toolkit = _value(_value(account, "toolkit"), "slug")
+    if _value(account, "user_id") != user.id or toolkit != config["toolkit"]:
+        raise HTTPException(status_code=403, detail="That calendar connection does not belong to this user.")
+    if str(_value(account, "status", "")).upper() != "ACTIVE":
+        raise HTTPException(status_code=409, detail="Calendar authorization is not complete.")
 
     connection = db.scalar(
         select(CalendarConnection).where(
-            CalendarConnection.user_id == oauth_state.user_id,
+            CalendarConnection.user_id == user.id,
             CalendarConnection.provider == provider,
         )
     )
+    previous_account_id = connection.composio_connected_account_id if connection else None
     if connection is None:
         connection = CalendarConnection(
-            user_id=oauth_state.user_id,
+            user_id=user.id,
             provider=provider,
-            access_token_encrypted=_encrypt(access_token),
+            composio_connected_account_id=connected_account_id,
         )
         db.add(connection)
-    connection.provider_account_email = account_email
-    connection.access_token_encrypted = _encrypt(access_token)
-    if token.get("refresh_token"):
-        connection.refresh_token_encrypted = _encrypt(token["refresh_token"])
-    connection.expires_at = utcnow() + timedelta(seconds=int(token.get("expires_in", 3600)))
-    connection.scopes_json = token.get("scope", "").split()
+    connection.composio_connected_account_id = connected_account_id
+    connection.provider_account_email = _find_email(
+        {
+            "data": _value(account, "data", {}),
+            "params": _value(account, "params", {}),
+            "state": _value(account, "state", {}),
+        }
+    )
     connection.status = "active"
     connection.last_error = None
-    oauth_state.consumed_at = utcnow()
     db.commit()
-    user = db.get(User, oauth_state.user_id)
-    return user, oauth_state.return_path
+    db.refresh(connection)
+
+    if previous_account_id and previous_account_id != connected_account_id:
+        try:
+            _client().connected_accounts.delete(previous_account_id, revoke_on_delete=True)
+        except Exception:
+            pass
+    return connection
 
 
 def _connection_view(db: Session, connection: CalendarConnection) -> dict[str, Any]:
@@ -204,8 +255,6 @@ def _connection_view(db: Session, connection: CalendarConnection) -> dict[str, A
         "provider": connection.provider,
         "provider_account_email": connection.provider_account_email,
         "status": connection.status,
-        "scopes": connection.scopes_json or [],
-        "expires_at": connection.expires_at,
         "last_error": connection.last_error,
         "last_synced_at": connection.last_synced_at,
         "synced_events": sum(1 for link in links if link.sync_status == "synced"),
@@ -223,33 +272,7 @@ def list_connections(db: Session, user_id: str) -> list[dict[str, Any]]:
     return [_connection_view(db, row) for row in rows]
 
 
-def _refresh(connection: CalendarConnection) -> str:
-    if connection.expires_at is None or connection.expires_at > utcnow() + timedelta(minutes=1):
-        return _decrypt(connection.access_token_encrypted)
-    if not connection.refresh_token_encrypted:
-        raise RuntimeError("Calendar access expired; reconnect the account.")
-    provider: CalendarProvider = connection.provider  # type: ignore[assignment]
-    client_id, client_secret = _provider_config(provider)
-    response = _http().post(
-        _token_url(provider),
-        data={
-            "client_id": client_id,
-            "client_secret": client_secret,
-            "refresh_token": _decrypt(connection.refresh_token_encrypted),
-            "grant_type": "refresh_token",
-            **({"scope": MICROSOFT_SCOPE} if provider == "microsoft" else {}),
-        },
-    )
-    response.raise_for_status()
-    token = response.json()
-    connection.access_token_encrypted = _encrypt(token["access_token"])
-    if token.get("refresh_token"):
-        connection.refresh_token_encrypted = _encrypt(token["refresh_token"])
-    connection.expires_at = utcnow() + timedelta(seconds=int(token.get("expires_in", 3600)))
-    return token["access_token"]
-
-
-def _event_body(repos: Repositories, session, provider: CalendarProvider) -> dict[str, Any]:
+def _session_content(repos: Repositories, session) -> dict[str, Any]:
     event = repos.events.get(session.event_id)
     room = repos.rooms.get(session.room_id) if session.room_id else None
     people = []
@@ -257,43 +280,122 @@ def _event_body(repos: Repositories, session, provider: CalendarProvider) -> dic
         person = repos.people.get(participant.person_id)
         if person:
             people.append(" ".join(filter(None, [person.first_name, person.last_name])) or person.primary_email)
-    description = re_strip_html(session.description or "")
+    description = _strip_html(session.description or "")
     if people:
         description += f"\n\nSpeakers: {', '.join(people)}"
     description += f"\n\nSpeaker portal: {settings.web_app_url.rstrip('/')}/portal/{event.slug}"
-    location = room.name if room else session.location or ""
+    description += f"\nOpen Session session ID: {session.id}"
     timezone = event.timezone or "UTC"
     start = session.starts_at.astimezone(ZoneInfo(timezone))
     end = session.ends_at.astimezone(ZoneInfo(timezone))
-    if provider == "google":
-        return {
-            "summary": session.title,
-            "description": description.strip(),
-            "location": location,
-            "start": {"dateTime": start.isoformat(), "timeZone": timezone},
-            "end": {"dateTime": end.isoformat(), "timeZone": timezone},
-        }
     return {
-        "subject": session.title,
-        "body": {"contentType": "text", "content": description.strip()},
-        "location": {"displayName": location},
-        "start": {"dateTime": start.strftime("%Y-%m-%dT%H:%M:%S"), "timeZone": timezone},
-        "end": {"dateTime": end.strftime("%Y-%m-%dT%H:%M:%S"), "timeZone": timezone},
-        "transactionId": deterministic_event_key(session.id, "microsoft"),
+        "title": session.title,
+        "description": description.strip(),
+        "location": room.name if room else session.location or "",
+        "timezone": timezone,
+        "start": start,
+        "end": end,
     }
 
 
-def re_strip_html(value: str) -> str:
+def _strip_html(value: str) -> str:
     import re
 
     return re.sub(r"<[^>]+>", " ", value).strip()
 
 
-def deterministic_event_key(session_id: str, provider: str) -> str:
-    digest = hashlib.sha256(f"open-session:{provider}:{session_id}".encode()).hexdigest()
-    if provider == "microsoft":
-        return f"{digest[:8]}-{digest[8:12]}-{digest[12:16]}-{digest[16:20]}-{digest[20:32]}"
-    return digest[:32]
+def _arguments(provider: CalendarProvider, action: str, content: dict[str, Any], event_id: str | None) -> dict:
+    if action == "delete":
+        if provider == "google":
+            return {"calendar_id": "primary", "event_id": event_id, "send_updates": "none"}
+        return {"user_id": "me", "event_id": event_id}
+    start = content["start"]
+    end = content["end"]
+    local_start = start.replace(tzinfo=None).isoformat(timespec="seconds")
+    local_end = end.replace(tzinfo=None).isoformat(timespec="seconds")
+    if provider == "google":
+        if action == "update":
+            return {
+                "calendar_id": "primary",
+                "event_id": event_id,
+                "summary": content["title"],
+                "description": content["description"],
+                "location": content["location"],
+                "start_time": start.isoformat(timespec="seconds"),
+                "end_time": end.isoformat(timespec="seconds"),
+                "timezone": content["timezone"],
+                "send_updates": "none",
+            }
+        return {
+            "calendar_id": "primary",
+            "summary": content["title"],
+            "description": content["description"],
+            "location": content["location"],
+            "start_datetime": local_start,
+            "end_datetime": local_end,
+            "timezone": content["timezone"],
+            "send_updates": "none",
+            "exclude_organizer": True,
+            "create_meeting_room": False,
+            "extended_properties": {"private": {"open_session_id": content.get("session_id", "")}},
+        }
+    if action == "update":
+        return {
+            "user_id": "me",
+            "event_id": event_id,
+            "subject": content["title"],
+            "body": {"contentType": "Text", "content": content["description"]},
+            "location": content["location"],
+            "start_datetime": local_start,
+            "end_datetime": local_end,
+            "time_zone": content["timezone"],
+            "show_as": "busy",
+        }
+    return {
+        "user_id": "me",
+        "subject": content["title"],
+        "body": content["description"],
+        "is_html": False,
+        "location": content["location"],
+        "start_datetime": local_start,
+        "end_datetime": local_end,
+        "time_zone": content["timezone"],
+        "show_as": "busy",
+    }
+
+
+def _execute(connection: CalendarConnection, action: str, arguments: dict) -> Any:
+    config = _provider(connection.provider)  # type: ignore[arg-type]
+    result = _client().tools.execute(
+        config[action],
+        arguments,
+        user_id=connection.user_id,
+        connected_account_id=connection.composio_connected_account_id,
+        version=config["version"],
+    )
+    if not _value(result, "successful", False):
+        raise RuntimeError(_value(result, "error") or f"Composio {action} failed")
+    return _value(result, "data", {})
+
+
+def _extract_event_id(value: Any) -> str | None:
+    if isinstance(value, str):
+        try:
+            return _extract_event_id(json.loads(value))
+        except (json.JSONDecodeError, TypeError):
+            return None
+    if hasattr(value, "model_dump"):
+        value = value.model_dump()
+    if isinstance(value, dict):
+        for key in ("id", "event_id", "eventId"):
+            candidate = value.get(key)
+            if isinstance(candidate, str) and candidate:
+                return candidate
+        for key in ("response_data", "response", "data"):
+            found = _extract_event_id(value.get(key))
+            if found:
+                return found
+    return None
 
 
 def _sync_one(db: Session, repos: Repositories, connection: CalendarConnection, session, person_id: str) -> None:
@@ -309,50 +411,28 @@ def _sync_one(db: Session, repos: Repositories, connection: CalendarConnection, 
         db.flush()
 
     try:
-        token = _refresh(connection)
-        headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
-        provider: CalendarProvider = connection.provider  # type: ignore[assignment]
         is_live = session.starts_at is not None and session.ends_at is not None and session.status != "cancelled"
-        client = _http()
         if not is_live:
             if link.provider_event_id:
-                if provider == "google":
-                    event_id = quote(link.provider_event_id, safe="")
-                    url = (
-                        "https://www.googleapis.com/calendar/v3/calendars/primary/events/"
-                        f"{event_id}?sendUpdates=none"
-                    )
-                else:
-                    url = f"https://graph.microsoft.com/v1.0/me/events/{quote(link.provider_event_id, safe='')}"
-                response = client.delete(url, headers=headers)
-                if response.status_code not in (204, 404, 410):
-                    response.raise_for_status()
+                _execute(
+                    connection,
+                    "delete",
+                    _arguments(connection.provider, "delete", {}, link.provider_event_id),  # type: ignore[arg-type]
+                )
             link.sync_status = "cancelled"
         else:
-            body = _event_body(repos, session, provider)
-            if provider == "google":
-                base = "https://www.googleapis.com/calendar/v3/calendars/primary/events"
-                if link.provider_event_id:
-                    response = client.patch(
-                        f"{base}/{quote(link.provider_event_id, safe='')}?sendUpdates=none", headers=headers, json=body
-                    )
-                else:
-                    body["id"] = deterministic_event_key(session.id, "google")
-                    response = client.post(f"{base}?sendUpdates=none", headers=headers, json=body)
-                    if response.status_code == 409:
-                        response = client.patch(f"{base}/{body['id']}?sendUpdates=none", headers=headers, json=body)
-            else:
-                base = "https://graph.microsoft.com/v1.0/me/events"
-                if link.provider_event_id:
-                    response = client.patch(
-                        f"{base}/{quote(link.provider_event_id, safe='')}", headers=headers, json=body
-                    )
-                else:
-                    response = client.post(base, headers=headers, json=body)
-            response.raise_for_status()
-            data = response.json()
-            link.provider_event_id = data.get("id") or link.provider_event_id
-            link.provider_version = data.get("etag") or data.get("@odata.etag") or data.get("changeKey")
+            content = _session_content(repos, session)
+            content["session_id"] = session.id
+            action = "update" if link.provider_event_id else "create"
+            data = _execute(
+                connection,
+                action,
+                _arguments(connection.provider, action, content, link.provider_event_id),  # type: ignore[arg-type]
+            )
+            if action == "create":
+                link.provider_event_id = _extract_event_id(data)
+                if not link.provider_event_id:
+                    raise RuntimeError("Composio created the event but did not return its event ID.")
             link.sync_status = "synced"
         link.last_error = None
         link.last_synced_at = utcnow()
@@ -397,6 +477,13 @@ def disconnect(db: Session, user_id: str, connection_id: str) -> None:
     connection = db.get(CalendarConnection, connection_id)
     if connection is None or connection.user_id != user_id:
         raise HTTPException(status_code=404, detail="Calendar connection not found")
+    if is_available():
+        try:
+            _client().connected_accounts.delete(connection.composio_connected_account_id, revoke_on_delete=True)
+        except Exception:
+            # Local disconnect must remain available if Composio is temporarily
+            # unreachable; the user can also revoke the grant at the provider.
+            pass
     db.execute(delete(CalendarEventLink).where(CalendarEventLink.connection_id == connection.id))
     db.delete(connection)
     db.commit()

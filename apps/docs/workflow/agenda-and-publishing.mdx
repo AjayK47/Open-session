@@ -1,0 +1,48 @@
+---
+title: Agenda and publishing
+description: "Schedule sessions, resolve conflicts, and publish responsive programme surfaces."
+icon: "calendar-clock"
+---
+
+The agenda uses the event's configured dates, timezone, rooms, tracks, and session
+formats.
+
+## Schedule sessions
+
+Use the agenda builder to place a session into a room and time range. Organizers
+can switch between day, week, track, room, and list views while working from the
+same schedule records.
+
+The conflict engine checks:
+
+- two sessions occupying the same room;
+- a speaker scheduled in overlapping sessions;
+- serial tracks containing overlapping sessions;
+- sessions outside the event boundary;
+- invalid or non-positive durations.
+
+Conflicting placements are rejected or surfaced for resolution before publishing.
+
+## Publish the agenda
+
+Publishing exposes approved sessions with a confirmed, scheduled, or published
+status through the public programme API.
+
+Public routes include:
+
+```text
+/e/{event-slug}/sessions
+/e/{event-slug}/speakers
+/e/{event-slug}/agenda
+/e/{event-slug}/itinerary
+/e/{event-slug}/gallery
+```
+
+These pages are responsive and can be linked directly or embedded in an iframe.
+They read from one public programme payload, so the schedule and speaker gallery
+do not drift apart.
+
+## Calendar updates
+
+Schedule changes retain a stable iCalendar UID and increment the event sequence.
+That lets calendar clients recognize an update instead of creating a duplicate.

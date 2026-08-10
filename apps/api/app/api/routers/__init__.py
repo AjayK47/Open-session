@@ -11,6 +11,7 @@ from .file_requests import router as file_requests_router
 from .files import router as files_router
 from .forms import router as forms_router
 from .me import router as me_router
+from .organization import router as organization_router
 from .portal_forms import router as portal_forms_router
 from .program import router as program_router
 from .public import router as public_router
@@ -37,6 +38,7 @@ api_router.include_router(evaluations_router)
 api_router.include_router(sessions_router)
 api_router.include_router(speakers_router)
 api_router.include_router(me_router)
+api_router.include_router(organization_router)
 api_router.include_router(tasks_router)
 api_router.include_router(files_router)
 api_router.include_router(file_requests_router)

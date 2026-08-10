@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CalendarCheck2, RefreshCw, Trash2 } from "lucide-react";
 import { useParams, useSearchParams } from "react-router";
@@ -17,18 +17,38 @@ export function PortalCalendarPage() {
   const { eventSlug } = useParams<{ eventSlug: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
+  const completingRef = useRef(false);
   const [starting, setStarting] = useState<CalendarProvider | null>(null);
+  const { data: availability, isLoading: availabilityLoading } = useQuery({
+    queryKey: ["calendar-availability"],
+    queryFn: calendarApi.availability,
+  });
   const { data: connections = [], isLoading } = useQuery({
     queryKey: ["calendar-connections"],
     queryFn: calendarApi.connections,
   });
 
   useEffect(() => {
-    if (searchParams.get("calendar") === "connected") {
-      toast.success("Calendar connected");
+    const provider = searchParams.get("calendar_provider") as CalendarProvider | null;
+    const status = searchParams.get("status");
+    const connectedAccountId = searchParams.get("connected_account_id");
+    if (!provider || !status || completingRef.current) return;
+    if (status !== "success" || !connectedAccountId) {
+      toast.error("Calendar connection was not completed");
       setSearchParams({}, { replace: true });
-      void queryClient.invalidateQueries({ queryKey: ["calendar-connections"] });
+      return;
     }
+    completingRef.current = true;
+    void calendarApi.complete(provider, connectedAccountId)
+      .then(async () => {
+        toast.success("Calendar connected and synchronized");
+        await queryClient.invalidateQueries({ queryKey: ["calendar-connections"] });
+      })
+      .catch((error) => toast.error(error instanceof ApiError ? error.message2 : "Could not verify calendar connection"))
+      .finally(() => {
+        completingRef.current = false;
+        setSearchParams({}, { replace: true });
+      });
   }, [queryClient, searchParams, setSearchParams]);
 
   async function connect(provider: CalendarProvider) {
@@ -67,7 +87,14 @@ export function PortalCalendarPage() {
         description="Connect your own calendar once. Scheduled sessions are created automatically and stay current when the organizer changes the agenda."
       />
 
-      <div className="grid gap-4 md:grid-cols-2">
+      {availabilityLoading ? <p className="text-sm text-muted-foreground">Checking connected-calendar availability…</p> : !availability?.enabled ? (
+        <section className="max-w-2xl rounded-xl border border-border bg-card p-5">
+          <div className="flex items-start gap-3">
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-muted text-muted-foreground"><CalendarCheck2 className="size-5" /></span>
+            <div><h2 className="text-sm font-semibold">Connected calendar sync is optional</h2><p className="mt-1 text-sm leading-6 text-muted-foreground">This deployment has not enabled Composio calendar connections. Your emailed calendar invitations and downloadable iCalendar files still work normally.</p></div>
+          </div>
+        </section>
+      ) : <div className="grid gap-4 md:grid-cols-2">
         {PROVIDERS.map((provider) => {
           const connection = connections.find((item) => item.provider === provider.provider);
           return (
@@ -85,7 +112,7 @@ export function PortalCalendarPage() {
             />
           );
         })}
-      </div>
+      </div>}
 
       <p className="max-w-2xl text-xs leading-relaxed text-muted-foreground">
         Only sessions assigned to your speaker profile are synchronized. You can disconnect at any time. Downloadable and emailed iCalendar invites remain available even without a connected account.

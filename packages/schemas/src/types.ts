@@ -30,6 +30,51 @@ export interface EvaluationPersona {
   start_path: string;
 }
 
+export interface Organization {
+  id: string;
+  name: string;
+  slug: string;
+  website_url: string | null;
+  description: string | null;
+  default_timezone: string;
+  logo_url: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface OrganizationContext {
+  organization: Organization | null;
+  membership_role: "owner" | "admin" | "member" | null;
+  needs_onboarding: boolean;
+  pending_invitation_count: number;
+}
+
+export interface OrganizationInput {
+  name: string;
+  slug: string;
+  website_url?: string | null;
+  description?: string | null;
+  default_timezone: string;
+}
+
+export interface OrganizationMember {
+  user_id: string;
+  email: string;
+  role: "owner" | "admin" | "member";
+  status: string;
+  created_at: string;
+}
+
+export interface OrganizationInvitation {
+  id: string;
+  email: string;
+  role: "admin" | "member";
+  status: "pending" | "accepted" | "expired" | "revoked";
+  expires_at: string;
+  created_at: string;
+  invite_url: string | null;
+}
+
 export type CalendarProvider = "google" | "microsoft";
 
 export interface CalendarConnection {
@@ -37,13 +82,16 @@ export interface CalendarConnection {
   provider: CalendarProvider;
   provider_account_email: string | null;
   status: "active" | "error" | string;
-  scopes: string[];
-  expires_at: string | null;
   last_error: string | null;
   last_synced_at: string | null;
   synced_events: number;
   failed_events: number;
   created_at: string;
+}
+
+export interface CalendarAvailability {
+  enabled: boolean;
+  providers: CalendarProvider[];
 }
 
 // ---------------------------------------------------------------------------

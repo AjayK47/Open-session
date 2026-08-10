@@ -7,6 +7,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from app.api.deps import _authorize_event, get_principal, get_repos, require_event_role
+from app.core.blob_storage import BlobStorage, get_blob_storage
 from app.core.db import get_db
 from app.repositories import Repositories
 from app.schemas.ops import FileCommentCreate, UploadIntentRequest
@@ -28,11 +29,12 @@ def list_files(
 
 
 @router.get("/events/{event_id}/files/bundle.zip")
-def files_bundle(
+async def files_bundle(
     event_id: str = Depends(require_event_role("owner", "admin")),
     submission_ids: list[str] = Query(default=[]),
     file_ids: list[str] = Query(default=[]),
     repos: Repositories = Depends(get_repos),
+    storage: BlobStorage = Depends(get_blob_storage),
 ):
     submissions = repos.submissions.list_by_event(event_id)
     selected = set(submission_ids)
@@ -73,7 +75,7 @@ def files_bundle(
                     continue
                 if selected and file.submission_id not in selected:
                     continue
-                _, content = file_service.download(repos, file.id)
+                _, content = await file_service.download(repos, storage, file.id)
                 # Measured against real bytes, not the declared size_bytes: a stale
                 # or zero declared size would otherwise let the cap be bypassed.
                 total_size += len(content)
@@ -144,13 +146,14 @@ async def store_content(
     principal=Depends(get_principal),
     db: Session = Depends(get_db),
     repos: Repositories = Depends(get_repos),
+    storage: BlobStorage = Depends(get_blob_storage),
 ):
     file = repos.files.get(file_id)
     if file is None:
         raise HTTPException(status_code=404, detail="File not found")
     _file_authz(db, principal, file, write=True)
     content = await request.body()
-    return file_service.store_content(db, repos, file_id, content)
+    return await file_service.store_content(db, repos, storage, file_id, content)
 
 
 @router.post("/files/{file_id}/complete")
@@ -259,17 +262,18 @@ def add_file_comment(
 
 
 @router.get("/files/{file_id}/download")
-def download_file(
+async def download_file(
     file_id: str,
     principal=Depends(get_principal),
     db: Session = Depends(get_db),
     repos: Repositories = Depends(get_repos),
+    storage: BlobStorage = Depends(get_blob_storage),
 ):
     file = repos.files.get(file_id)
     if file is None:
         raise HTTPException(status_code=404, detail="File not found")
     _file_authz(db, principal, file, write=False)
-    file_obj, content = file_service.download(repos, file_id)
+    file_obj, content = await file_service.download(repos, storage, file_id)
     # Images are rendered in-page (headshots in the portal and on speaker cards),
     # everything else is a download. Serving an image as `attachment` makes the
     # browser offer a save dialog when the URL is opened directly.
@@ -282,17 +286,18 @@ def download_file(
 
 
 @router.delete("/files/{file_id}")
-def delete_file(
+async def delete_file(
     file_id: str,
     principal=Depends(get_principal),
     db: Session = Depends(get_db),
     repos: Repositories = Depends(get_repos),
+    storage: BlobStorage = Depends(get_blob_storage),
 ):
     file = repos.files.get(file_id)
     if file is None:
         raise HTTPException(status_code=404, detail="File not found")
     _file_authz(db, principal, file, write=True)
-    file_service.delete(db, repos, file_id)
+    await file_service.delete(db, repos, storage, file_id)
     return {"ok": True}
 
 

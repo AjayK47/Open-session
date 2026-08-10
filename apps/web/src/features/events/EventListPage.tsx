@@ -1,11 +1,25 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router";
 import { differenceInCalendarDays } from "date-fns";
-import { CalendarDays, MapPin, Megaphone, Plus, Sparkles, ArrowRight } from "lucide-react";
-import { Badge, Button, cn } from "@opensession/ui";
+import { CalendarDays, LogOut, MapPin, Megaphone, Plus, Sparkles, ArrowRight, Building2, Settings } from "lucide-react";
+import {
+  Avatar,
+  AvatarFallback,
+  Badge,
+  Button,
+  cn,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@opensession/ui";
 import { eventsApi, filesApi } from "../../api";
 import type { Event } from "@opensession/schemas";
 import { formatEventDates } from "../../components/event-identity";
+import { useOrganizationContext } from "../../lib/organization";
+import { useAuth } from "../../lib/auth";
+import { apiUrl } from "../../api";
 
 /** Deterministic hue pair per event id, so an event without a banner still gets
  *  a stable identity instead of a grey placeholder. */
@@ -45,8 +59,43 @@ function dateRange(event: Event): string {
 
 export function EventListPage() {
   const { data: events, isLoading } = useQuery({ queryKey: ["events"], queryFn: eventsApi.list });
+  const { data: organizationContext } = useOrganizationContext();
+  const organization = organizationContext?.organization;
+  const { user, logout } = useAuth();
+  const initials = (user?.email ?? "?").slice(0, 2).toUpperCase();
 
   return (
+    <div className="min-h-screen bg-background">
+      <header className="border-b border-border bg-card/65"><div className="mx-auto flex h-16 w-full max-w-6xl items-center gap-3 px-6">
+        <span className="flex size-9 items-center justify-center overflow-hidden rounded-xl border border-border bg-background text-primary">{organization?.logo_url ? <img src={apiUrl(organization.logo_url)} alt="" className="size-full object-contain p-1" /> : <Building2 className="size-4.5" />}</span>
+        <div className="min-w-0"><p className="truncate text-sm font-semibold">{organization?.name ?? "Your events"}</p><p className="text-[11px] text-muted-foreground">Organization workspace</p></div>
+        <div className="ml-auto flex items-center gap-1.5">
+          {organization && <Button variant="ghost" size="sm" asChild><Link to="/app/organization"><Settings />Organization settings</Link></Button>}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                className="ml-0.5 rounded-full outline-none focus-visible:ring-[3px] focus-visible:ring-ring/35"
+              >
+                <Avatar className="size-8">
+                  <AvatarFallback className="text-xs font-medium">{initials}</AvatarFallback>
+                </Avatar>
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <div className="px-2 py-1.5">
+                <p className="text-sm font-medium text-foreground">Signed in</p>
+                <p className="truncate text-xs text-muted-foreground">{user?.email}</p>
+              </div>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem destructive onSelect={() => void logout()}>
+                <LogOut />
+                Log out
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </div></header>
     <div className="mx-auto w-full max-w-6xl px-6 py-10">
       <div className="mb-7 flex items-end justify-between gap-4">
         <div className="min-w-0">
@@ -86,7 +135,7 @@ export function EventListPage() {
           ))}
         </div>
       )}
-    </div>
+    </div></div>
   );
 }
 

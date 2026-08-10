@@ -27,26 +27,42 @@ class Settings(BaseSettings):
     ai_review_timeout_seconds: float = 45.0
     ai_review_max_runs_per_submission: int = 5
 
-    # Speaker-owned calendar OAuth. Redirect URI is derived from api_public_url.
+    # Optional speaker-owned calendar synchronization through Composio managed
+    # auth. The Open Session user UUID is used as the distinct Composio user ID.
     web_app_url: str = "http://localhost:5173"
-    api_public_url: str = "http://localhost:8000"
-    google_calendar_client_id: str | None = None
-    google_calendar_client_secret: str | None = None
-    microsoft_calendar_client_id: str | None = None
-    microsoft_calendar_client_secret: str | None = None
-    microsoft_calendar_tenant: str = "common"
+    composio_api_key: str | None = None
 
     files_storage_dir: str = "./data/files"
     default_organization_id: str = "org_default"
+
+    # Internal scheduler-to-API authentication. Production deployments run the
+    # reminder loop as a separate process and never expose /internal routes at
+    # the public reverse proxy.
+    internal_job_secret: str | None = None
+    internal_api_url: str = "http://127.0.0.1:8000"
+    reminder_interval_seconds: int = 3600
 
     cors_origins: list[str] = ["http://localhost:5173", "http://127.0.0.1:5173"]
 
     # Rate limiting (§26). Throttles brute-force/spam against magic-login codes and
     # public CFP submission creation; stand-in for Turnstile until that's wired up.
+    #
+    # Sign-in codes are limited on three independent dimensions, all sharing one
+    # window:
+    #   - per email  (auth_request_code_limit)      — stops one inbox being spammed
+    #   - per IP     (auth_request_code_ip_limit)    — coarse ceiling for a whole
+    #     network (an office behind one NAT'd IP shares this pool)
+    #   - per device (auth_request_code_device_limit) — a lighter cookie-based
+    #     sub-limit *within* the IP pool, so one busy browser can't burn through
+    #     the whole office's allowance by itself. This is a false-positive
+    #     reducer, not a security boundary — clearing cookies resets it, so the
+    #     per-email and per-IP limits remain the real backstops.
     rate_limit_enabled: bool = True
-    auth_request_code_limit: int = 5
+    auth_request_code_limit: int = 8
+    auth_request_code_ip_limit: int = 20
+    auth_request_code_device_limit: int = 8
     auth_request_code_window_seconds: int = 15 * 60
-    auth_verify_limit: int = 10
+    auth_verify_limit: int = 15
     auth_verify_window_seconds: int = 15 * 60
     public_submission_limit: int = 30
     public_submission_window_seconds: int = 3600

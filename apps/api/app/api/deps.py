@@ -9,6 +9,8 @@ from app.core.db import get_db, utcnow
 from app.core.security import hash_secret, verify_session
 from app.models.auth import ApiKey, RoleBinding, User
 from app.models.auth import Session as DBSession
+from app.models.organization import OrganizationMembership
+from app.models.program import Event
 from app.repositories import Repositories, create_repositories
 
 COOKIE_NAME = "session"
@@ -80,6 +82,17 @@ def _authorize_event(
     db: Session, principal: Principal, event_id: str, roles: set[str], scope: str | None = None
 ) -> bool:
     if principal.kind == "user":
+        event = db.get(Event, event_id)
+        if event is not None and roles & {"owner", "admin"}:
+            org_role = db.scalar(
+                select(OrganizationMembership.role).where(
+                    OrganizationMembership.organization_id == event.organization_id,
+                    OrganizationMembership.user_id == principal.user.id,
+                    OrganizationMembership.status == "active",
+                )
+            )
+            if org_role in {"owner", "admin"}:
+                return True
         bound_roles = set(
             db.scalars(
                 select(RoleBinding.role).where(
@@ -98,6 +111,30 @@ def _authorize_event(
     if roles & {"owner", "admin"}:
         return scope is not None and scope in scopes
     return True  # read access with a scoped key
+
+
+def require_organization_role(*roles: str) -> Callable:
+    def dependency(
+        user: User = Depends(get_current_user),
+        db: Session = Depends(get_db),
+    ):
+        from app.models.organization import Organization
+
+        organization = db.scalar(select(Organization).order_by(Organization.created_at.asc()).limit(1))
+        if organization is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Organization not found")
+        membership = db.scalar(
+            select(OrganizationMembership).where(
+                OrganizationMembership.organization_id == organization.id,
+                OrganizationMembership.user_id == user.id,
+                OrganizationMembership.status == "active",
+            )
+        )
+        if membership is None or membership.role not in set(roles):
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient organization permissions")
+        return organization
+
+    return dependency
 
 
 def require_event_role(*roles: str, scope: str = "events:write") -> Callable:

@@ -6,12 +6,16 @@ Turnstile on public endpoints until real site keys are wired in: it won't stop a
 single sophisticated bot, but it caps brute-force/spam volume from any one client.
 """
 
-from fastapi import Depends, HTTPException, Request, status
+from fastapi import Depends, HTTPException, Request, Response, status
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.db import get_db, utcnow
+from app.core.security import new_id
 from app.models.auth import RateLimitBucket
+
+DEVICE_COOKIE_NAME = "osdid"
+DEVICE_COOKIE_MAX_AGE = 365 * 24 * 3600
 
 
 def client_ip(request: Request) -> str:
@@ -19,6 +23,31 @@ def client_ip(request: Request) -> str:
     if forwarded:
         return forwarded.split(",")[0].strip()
     return request.client.host if request.client else "unknown"
+
+
+def client_device_id(request: Request, response: Response) -> str:
+    """An opaque per-browser id, issued on first use and read back afterward.
+
+    Purely a rate-limit bucketing key — not a security token, not tied to any
+    account, and never checked against anything server-side beyond "have we
+    seen this cookie before". Clearing cookies resets it, which is fine: the
+    device dimension only exists to stop one browser from consuming a shared
+    IP's whole allowance, not to identify or authenticate anyone.
+    """
+    existing = request.cookies.get(DEVICE_COOKIE_NAME)
+    if existing:
+        return existing
+    device_id = new_id()
+    response.set_cookie(
+        key=DEVICE_COOKIE_NAME,
+        value=device_id,
+        max_age=DEVICE_COOKIE_MAX_AGE,
+        httponly=True,
+        secure=settings.environment != "development",
+        samesite="lax",
+        path="/",
+    )
+    return device_id
 
 
 def check_rate_limit(db: Session, key: str, *, limit: int, window_seconds: int) -> None:
@@ -53,5 +82,24 @@ def ip_rate_limit(name: str, limit: int, window_seconds: int):
 
     def dependency(request: Request, db: Session = Depends(get_db)) -> None:
         check_rate_limit(db, f"{name}:ip:{client_ip(request)}", limit=limit, window_seconds=window_seconds)
+
+    return dependency
+
+
+def ip_device_rate_limit(name: str, *, ip_limit: int, device_limit: int, window_seconds: int):
+    """FastAPI dependency: throttle per client IP, with a tighter per-device
+    sub-limit inside that pool (see client_device_id).
+
+    A single busy browser is capped at `device_limit`; the whole IP — everyone
+    behind one office NAT, say — shares the larger `ip_limit`. Either one alone
+    can trip the 429.
+    """
+
+    def dependency(request: Request, response: Response, db: Session = Depends(get_db)) -> None:
+        ip = client_ip(request)
+        device_id = client_device_id(request, response)
+        device_key = f"{name}:ip:{ip}:device:{device_id[:16]}"
+        check_rate_limit(db, f"{name}:ip:{ip}", limit=ip_limit, window_seconds=window_seconds)
+        check_rate_limit(db, device_key, limit=device_limit, window_seconds=window_seconds)
 
     return dependency

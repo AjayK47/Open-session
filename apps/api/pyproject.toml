@@ -5,7 +5,7 @@ description = "Open-source conference program operating system - API (FastAPI)"
 requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.115.6",
-    "uvicorn[standard]>=0.32.1",
+    "uvicorn>=0.32.1",
     "sqlalchemy>=2.0.36",
     "pydantic>=2.10.4",
     "pydantic-settings>=2.7.0",
@@ -16,9 +16,8 @@ dependencies = [
     "alembic>=1.14.0",
     "openpyxl>=3.1.5",
     "python-multipart>=0.0.20",
-    "openai>=2.0.0",
     "httpx>=0.28.1",
-    "cryptography>=44.0.0",
+    "sqlalchemy-cloudflare-d1==0.3.11",
 ]
 
 [dependency-groups]
@@ -26,6 +25,7 @@ dev = [
     "pytest>=8.3.4",
     "httpx>=0.28.1",
     "ruff>=0.8.4",
+    "workers-py>=1.16.2",
 ]
 
 [tool.uv]
@@ -48,6 +48,7 @@ ignore = ["B008"]
 "tests/*" = ["ASYNC", "E501"]
 # Long HTML template strings are intentionally single-line.
 "app/services/communication_service.py" = ["E501"]
+"app/email/templates.py" = ["E501"]
 
 [build-system]
 requires = ["hatchling"]

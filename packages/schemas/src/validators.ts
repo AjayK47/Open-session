@@ -177,6 +177,24 @@ export const apiKeySchema = z.object({
 export const requestCodeSchema = z.object({
   email: z.string().email("Enter a valid email"),
 });
+
+export const organizationSchema = z.object({
+  name: z.string().trim().min(2, "Organization name is required").max(200),
+  slug: z
+    .string()
+    .trim()
+    .min(2, "Workspace URL is required")
+    .max(80)
+    .regex(/^[a-z0-9-]+$/, "Use lowercase letters, numbers, and hyphens"),
+  website_url: z.string().url("Enter a valid website URL").optional().or(z.literal("")),
+  description: z.string().max(2000).optional().or(z.literal("")),
+  default_timezone: z.string().min(1, "Timezone is required"),
+});
+
+export const organizationInviteSchema = z.object({
+  email: z.string().email("Enter a valid email"),
+  role: z.enum(["admin", "member"]),
+});
 export const verifyCodeSchema = z.object({
   email: z.string().email(),
   code: z.string().min(4, "Enter the code we emailed you"),

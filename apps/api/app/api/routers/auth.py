@@ -1,10 +1,10 @@
-from fastapi import APIRouter, Depends, Response
+from fastapi import APIRouter, Cookie, Depends, Response
 from sqlalchemy.orm import Session
 
 from app.api.deps import COOKIE_NAME, get_current_user, get_repos
 from app.core.config import settings
 from app.core.db import get_db
-from app.core.rate_limit import check_rate_limit, ip_rate_limit
+from app.core.rate_limit import check_rate_limit, ip_device_rate_limit, ip_rate_limit
 from app.models.auth import User
 from app.repositories import Repositories
 from app.schemas.auth import (
@@ -33,8 +33,11 @@ _EVALUATION_PERSONAS = {
     ),
 }
 
-_request_code_ip_limit = ip_rate_limit(
-    "auth_request_code", settings.auth_request_code_limit, settings.auth_request_code_window_seconds
+_request_code_ip_limit = ip_device_rate_limit(
+    "auth_request_code",
+    ip_limit=settings.auth_request_code_ip_limit,
+    device_limit=settings.auth_request_code_device_limit,
+    window_seconds=settings.auth_request_code_window_seconds,
 )
 _verify_ip_limit = ip_rate_limit("auth_verify", settings.auth_verify_limit, settings.auth_verify_window_seconds)
 
@@ -78,7 +81,21 @@ def verify(
 
 
 @router.post("/logout")
-def logout(response: Response) -> dict[str, bool]:
+def logout(
+    response: Response,
+    session_cookie: str | None = Cookie(default=None, alias=COOKIE_NAME),
+    db: Session = Depends(get_db),
+) -> dict[str, bool]:
+    if session_cookie:
+        from app.core.security import verify_session
+        from app.models.auth import Session as DBSession
+
+        session_id = verify_session(session_cookie)
+        if session_id:
+            session = db.get(DBSession, session_id)
+            if session is not None:
+                db.delete(session)
+                db.commit()
     response.delete_cookie(COOKIE_NAME)
     return {"ok": True}
 

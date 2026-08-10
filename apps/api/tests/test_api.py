@@ -36,6 +36,62 @@ def test_health(client):
     assert res.json()["ok"] == "true"
 
 
+def test_production_internal_jobs_require_the_shared_secret(client, monkeypatch):
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "environment", "production")
+    monkeypatch.setattr(settings, "internal_job_secret", "scheduler-secret")
+
+    assert client.post("/internal/reminders/run").status_code == 404
+    assert (
+        client.post(
+            "/internal/reminders/run",
+            headers={"X-Open-Session-Job-Secret": "wrong"},
+        ).status_code
+        == 404
+    )
+    assert (
+        client.post(
+            "/internal/reminders/run",
+            headers={"X-Open-Session-Job-Secret": "scheduler-secret"},
+        ).status_code
+        == 200
+    )
+
+
+def test_transactional_email_templates_include_html_and_plain_text():
+    from app.email.templates import organization_invitation_email, sign_in_code_email, submission_received_email
+
+    sign_in = sign_in_code_email("123456", 10)
+    assert sign_in.html.startswith("<!doctype html>")
+    assert "123456" in sign_in.html
+    assert "123456" in sign_in.text
+    assert "one-time" in sign_in.text
+    assert "@media only screen" in sign_in.html
+    assert 'bgcolor="#171b27"' in sign_in.html
+
+    invitation = organization_invitation_email(
+        organization_name="AI Engineer",
+        inviter_email="owner@example.com",
+        role="admin",
+        invite_url="https://events.example.com/invitations/accept?token=safe-token",
+    )
+    assert "Join AI Engineer" in invitation.subject
+    assert "Accept invitation" in invitation.html
+    assert "https://events.example.com/invitations/accept?token=safe-token" in invitation.text
+
+    receipt = submission_received_email(
+        event_name="AI Engineer",
+        form_name="Call for Speakers",
+        recipient_name="Priya",
+        submission_title="Reliable Agents in Production",
+    )
+    assert "Your proposal is in" in receipt.html
+    assert "Reliable Agents in Production" in receipt.html
+    assert "No further action is needed" in receipt.html
+    assert "ready for review" in receipt.text
+
+
 def test_auth_requires_session(client):
     assert client.get("/api/v1/auth/me").status_code == 401
     assert client.get("/api/v1/events").status_code == 401
@@ -136,6 +192,38 @@ def test_create_and_read_event_with_program_seed(client):
         items = client.get(f"/api/v1/events/{event['id']}/{path}")
         assert items.status_code == 200
         assert [i["name"] for i in items.json()] == expected
+
+
+def test_local_organization_invitation_requires_the_matching_email(client):
+    _login(client, "owner@example.com")
+    context = client.get("/api/v1/organization/context")
+    assert context.status_code == 200
+    assert context.json()["membership_role"] == "owner"
+
+    invited_email = "new-admin@example.com"
+    invited = client.post(
+        "/api/v1/organization/invitations",
+        json={"email": invited_email, "role": "admin"},
+    )
+    assert invited.status_code == 201, invited.text
+    invite_url = invited.json()["invite_url"]
+    assert invite_url and "token=" in invite_url
+    token = invite_url.split("token=", 1)[1]
+
+    with TestClient(app) as wrong_user:
+        _login(wrong_user, "wrong-admin@example.com")
+        refused = wrong_user.post(f"/api/v1/organization/invitations/accept?token={token}")
+        assert refused.status_code == 403
+
+    with TestClient(app) as invitee:
+        _login(invitee, invited_email)
+        accepted = invitee.post(f"/api/v1/organization/invitations/accept?token={token}")
+        assert accepted.status_code == 200, accepted.text
+        assert accepted.json()["membership_role"] == "admin"
+        assert invitee.get("/api/v1/organization/context").json()["membership_role"] == "admin"
+
+        reused = invitee.post(f"/api/v1/organization/invitations/accept?token={token}")
+        assert reused.status_code == 409
 
 
 def test_duplicate_slug_conflict(client):

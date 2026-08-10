@@ -1,0 +1,15 @@
+.git
+.github
+.hallmark
+.env
+**/.env
+**/.venv
+**/__pycache__
+**/.pytest_cache
+**/node_modules
+**/dist
+**/*.db
+apps/api/data
+evals
+*.docx
+design.md

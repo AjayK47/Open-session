@@ -1,9 +1,9 @@
 from datetime import datetime
 
-from sqlalchemy import JSON, ForeignKey, String, Text, UniqueConstraint
+from sqlalchemy import ForeignKey, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.core.db import Base, TimestampMixin, UTCDateTime, utcnow
+from app.core.db import Base, TimestampMixin, UTCDateTime
 from app.core.security import new_id
 
 
@@ -13,11 +13,8 @@ class CalendarConnection(TimestampMixin, Base):
     id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
     user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), index=True, nullable=False)
     provider: Mapped[str] = mapped_column(String(16), nullable=False)
+    composio_connected_account_id: Mapped[str] = mapped_column(String(128), unique=True, nullable=False)
     provider_account_email: Mapped[str | None] = mapped_column(String(254))
-    access_token_encrypted: Mapped[str] = mapped_column(Text, nullable=False)
-    refresh_token_encrypted: Mapped[str | None] = mapped_column(Text)
-    expires_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
-    scopes_json: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
     status: Mapped[str] = mapped_column(String(16), default="active", nullable=False)
     last_error: Mapped[str | None] = mapped_column(Text)
     last_synced_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
@@ -39,16 +36,3 @@ class CalendarEventLink(TimestampMixin, Base):
     last_synced_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
 
     __table_args__ = (UniqueConstraint("connection_id", "session_id", name="uq_calendar_event_connection_session"),)
-
-
-class CalendarOAuthState(Base):
-    __tablename__ = "calendar_oauth_states"
-
-    state: Mapped[str] = mapped_column(String(128), primary_key=True)
-    user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), index=True, nullable=False)
-    provider: Mapped[str] = mapped_column(String(16), nullable=False)
-    code_verifier: Mapped[str] = mapped_column(String(128), nullable=False)
-    return_path: Mapped[str] = mapped_column(String(500), nullable=False)
-    expires_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False)
-    consumed_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
-    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow, nullable=False)

@@ -1,58 +1,76 @@
 ---
-title: Authentication
-description: "Session cookies for interactive use, API keys for scripts."
+title: Authentication and access
+sidebarTitle: Authentication
+description: "Passwordless sign-in, organization roles, invitations, and scoped API keys."
+icon: "shield-check"
 ---
 
-There are no passwords anywhere in Open Session. Every human account — organizer, speaker, or reviewer — signs in the same way: email, then a one-time code. What a signed-in user can do depends on their role for a given event, not which door they came through.
+Open Session does not store user passwords. Organizers, reviewers, and speakers
+all sign in with a short-lived, single-use code delivered to their email address.
+Authorization is determined by organization and event roles after sign-in.
 
-## Session cookies (interactive)
-
-This is what the web app itself uses, and it's available to you too.
+## Human sign-in
 
 <Steps>
   <Step title="Request a code">
     ```bash
     curl -X POST https://your-deployment/api/v1/auth/request-code \
       -H "Content-Type: application/json" \
-      -d '{"email": "you@example.com"}'
+      -d '{"email":"you@example.com"}'
     ```
-    In development (`OPEN_SESSION_EMAIL_ENABLED=false`), the response includes `dev_code` directly so you don't need an inbox. In production this is only ever true when `OPEN_SESSION_EVALUATION_MODE` is explicitly on — see the note below.
   </Step>
-  <Step title="Verify it">
+  <Step title="Verify the code">
     ```bash
     curl -X POST https://your-deployment/api/v1/auth/verify \
       -H "Content-Type: application/json" \
       -c cookies.txt \
-      -d '{"email": "you@example.com", "code": "123456"}'
+      -d '{"email":"you@example.com","code":"123456"}'
     ```
-    The response sets an `httpOnly` session cookie. Reuse `cookies.txt` (`-b cookies.txt`) on subsequent requests.
+
+    The response sets a signed, HTTP-only session cookie.
+  </Step>
+  <Step title="Reuse the session">
+    ```bash
+    curl https://your-deployment/api/v1/events -b cookies.txt
+    ```
   </Step>
 </Steps>
 
 <Warning>
-  A sign-in code is only ever returned in the API response when `OPEN_SESSION_EMAIL_ENABLED=false` **and** either `OPEN_SESSION_ENVIRONMENT=development` or `OPEN_SESSION_EVALUATION_MODE=true`. A normal production deployment with email configured never exposes it — the code only ever reaches the real inbox.
+  A sign-in code is returned in an API response only when email delivery is off
+  and the environment is `development`, or when evaluation mode is explicitly
+  enabled. A normal production deployment sends the code only to the inbox.
 </Warning>
 
-## API keys (server-to-server)
+## Organization and event access
 
-For scripts, integrations, or anything that shouldn't hold a human session. An organizer (owner/admin role) creates one from **Settings → API** in the web app, or via:
+The first authenticated user creates the single organization for the deployment
+and becomes its owner. Owners and administrators can invite teammates from
+**Organization settings → Team & invitations**.
 
-```bash
-curl -X POST https://your-deployment/api/v1/events/{event_id}/api-keys \
-  -H "Content-Type: application/json" \
-  -b cookies.txt \
-  -d '{"name": "CI integration", "scopes": ["sessions:write", "agenda:read"]}'
-```
+Invitations are:
 
-The key is shown once, at creation. Send it on every request:
+- bound to the invited email address;
+- valid for 14 days;
+- accepted only after passwordless sign-in;
+- assigned an organization role of owner, admin, or member.
+
+Event-level roles grant organizer, reviewer, or speaker access to a specific event.
+
+## API keys
+
+Owners and administrators can create a server-to-server key under
+**Settings → API**. The secret is shown once.
 
 ```bash
 curl https://your-deployment/api/v1/events/{event_id}/sessions \
   -H "Authorization: Bearer <your-key>"
 ```
 
-Keys are scoped (`events:write`, `sessions:write`, `agenda:read`, and so on) and can be revoked at any time from the same settings page.
+Keys carry explicit scopes such as `sessions:write` or `agenda:read` and can be
+revoked without affecting human sessions.
 
-## Public endpoints need neither
+## Public endpoints
 
-Everything under `/api/v1/public/...` — the CFP form, the five embeddable widgets — is deliberately open. That's what makes them embeddable on a third-party page in the first place.
+Routes under `/api/v1/public/...` intentionally need neither a session nor an API
+key. They power the public CFP and embeddable programme surfaces.

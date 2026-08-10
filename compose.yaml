@@ -1,0 +1,77 @@
+name: open-session
+
+services:
+  api:
+    image: ghcr.io/ajayk47/open-session-api:${OPEN_SESSION_VERSION:-main}
+    restart: unless-stopped
+    environment:
+      OPEN_SESSION_ENVIRONMENT: production
+      OPEN_SESSION_DATABASE_URL: sqlite:////data/open_session.db
+      OPEN_SESSION_FILES_STORAGE_DIR: /data/files
+      OPEN_SESSION_SESSION_SECRET: ${OPEN_SESSION_SESSION_SECRET:?Set OPEN_SESSION_SESSION_SECRET in .env}
+      OPEN_SESSION_INTERNAL_JOB_SECRET: ${OPEN_SESSION_INTERNAL_JOB_SECRET:?Set OPEN_SESSION_INTERNAL_JOB_SECRET in .env}
+      OPEN_SESSION_WEB_APP_URL: ${OPEN_SESSION_PUBLIC_URL:?Set OPEN_SESSION_PUBLIC_URL in .env}
+      OPEN_SESSION_CORS_ORIGINS: '["${OPEN_SESSION_PUBLIC_URL}"]'
+      OPEN_SESSION_EMAIL_ENABLED: ${OPEN_SESSION_EMAIL_ENABLED:-false}
+      OPEN_SESSION_EMAIL_PROVIDER: ${OPEN_SESSION_EMAIL_PROVIDER:-cloudflare}
+      OPEN_SESSION_EMAIL_SENDER_NAME: ${OPEN_SESSION_EMAIL_SENDER_NAME:-Open Session}
+      OPEN_SESSION_EMAIL_SENDER_ADDRESS: ${OPEN_SESSION_EMAIL_SENDER_ADDRESS:-noreply@localhost}
+      OPEN_SESSION_CLOUDFLARE_API_TOKEN: ${OPEN_SESSION_CLOUDFLARE_API_TOKEN:-}
+      OPEN_SESSION_CLOUDFLARE_ACCOUNT_ID: ${OPEN_SESSION_CLOUDFLARE_ACCOUNT_ID:-}
+      OPEN_SESSION_SMTP_HOST: ${OPEN_SESSION_SMTP_HOST:-localhost}
+      OPEN_SESSION_SMTP_PORT: ${OPEN_SESSION_SMTP_PORT:-1025}
+      OPEN_SESSION_SMTP_USERNAME: ${OPEN_SESSION_SMTP_USERNAME:-}
+      OPEN_SESSION_SMTP_PASSWORD: ${OPEN_SESSION_SMTP_PASSWORD:-}
+      OPEN_SESSION_SMTP_USE_TLS: ${OPEN_SESSION_SMTP_USE_TLS:-false}
+      OPEN_SESSION_SMTP_USE_SSL: ${OPEN_SESSION_SMTP_USE_SSL:-false}
+      OPEN_SESSION_AI_REVIEW_ENABLED: ${OPEN_SESSION_AI_REVIEW_ENABLED:-false}
+      OPEN_SESSION_OPENAI_API_KEY: ${OPEN_SESSION_OPENAI_API_KEY:-}
+      OPEN_SESSION_AI_REVIEW_MODEL: ${OPEN_SESSION_AI_REVIEW_MODEL:-gpt-5.6-luna}
+      OPEN_SESSION_COMPOSIO_API_KEY: ${OPEN_SESSION_COMPOSIO_API_KEY:-}
+      OPEN_SESSION_EVALUATION_MODE: ${OPEN_SESSION_EVALUATION_MODE:-false}
+    volumes:
+      - open_session_data:/data
+    networks:
+      - open_session_internal
+
+  scheduler:
+    image: ghcr.io/ajayk47/open-session-api:${OPEN_SESSION_VERSION:-main}
+    restart: unless-stopped
+    entrypoint: ["uv", "run", "python", "-m", "app.jobs.reminder_loop"]
+    environment:
+      OPEN_SESSION_ENVIRONMENT: production
+      OPEN_SESSION_DATABASE_URL: sqlite:////data/open_session.db
+      OPEN_SESSION_INTERNAL_API_URL: http://api:8000
+      OPEN_SESSION_INTERNAL_JOB_SECRET: ${OPEN_SESSION_INTERNAL_JOB_SECRET:?Set OPEN_SESSION_INTERNAL_JOB_SECRET in .env}
+      OPEN_SESSION_REMINDER_INTERVAL_SECONDS: ${OPEN_SESSION_REMINDER_INTERVAL_SECONDS:-3600}
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - open_session_internal
+
+  web:
+    image: ghcr.io/ajayk47/open-session-web:${OPEN_SESSION_VERSION:-main}
+    restart: unless-stopped
+    environment:
+      OPEN_SESSION_SITE_ADDRESS: ${OPEN_SESSION_SITE_ADDRESS:-http://localhost}
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "${OPEN_SESSION_HTTP_PORT:-80}:80"
+      - "${OPEN_SESSION_HTTPS_PORT:-443}:443"
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - open_session_internal
+
+volumes:
+  open_session_data:
+  caddy_data:
+  caddy_config:
+
+networks:
+  open_session_internal:
+    driver: bridge

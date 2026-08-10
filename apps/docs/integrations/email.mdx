@@ -1,0 +1,62 @@
+---
+title: Email delivery
+description: "Configure passwordless codes, speaker communications, reminders, templates, and calendar attachments."
+icon: "mail"
+---
+
+Email delivery is optional in local development and required for a normal
+production deployment.
+
+## Delivery providers
+
+<Tabs>
+  <Tab title="Cloudflare REST">
+    ```dotenv
+    OPEN_SESSION_EMAIL_ENABLED=true
+    OPEN_SESSION_EMAIL_PROVIDER=cloudflare
+    OPEN_SESSION_CLOUDFLARE_API_TOKEN=your_token
+    OPEN_SESSION_CLOUDFLARE_ACCOUNT_ID=your_account_id
+    OPEN_SESSION_EMAIL_SENDER_NAME=Open Session
+    OPEN_SESSION_EMAIL_SENDER_ADDRESS=events@example.com
+    ```
+
+    The token needs Email Sending permission and the sender domain must complete
+    Cloudflare's DNS verification.
+  </Tab>
+  <Tab title="SMTP">
+    ```dotenv
+    OPEN_SESSION_EMAIL_ENABLED=true
+    OPEN_SESSION_EMAIL_PROVIDER=smtp
+    OPEN_SESSION_SMTP_HOST=smtp.example.com
+    OPEN_SESSION_SMTP_PORT=465
+    OPEN_SESSION_SMTP_USE_SSL=true
+    OPEN_SESSION_SMTP_USERNAME=your_username
+    OPEN_SESSION_SMTP_PASSWORD=your_password
+    OPEN_SESSION_EMAIL_SENDER_ADDRESS=events@example.com
+    ```
+  </Tab>
+</Tabs>
+
+## What is delivered
+
+- passwordless sign-in codes;
+- CFP submission confirmations;
+- acceptance and decline messages;
+- reviewer and speaker reminders;
+- organizer-authored manual communications;
+- scheduled-session calendar attachments.
+
+## Templates and automations
+
+Events begin with editable transactional templates. Templates have responsive
+HTML and plain-text bodies and support documented merge variables such as event,
+speaker, and session values.
+
+Automations connect a trigger and optional conditions to a template. Every send
+is written to communication history, and reminder jobs use receipts to avoid
+delivering the same reminder twice.
+
+<Warning>
+  Verify SPF, DKIM, and DMARC for the sending domain before testing production
+  speaker communications. A valid API token alone does not establish sender trust.
+</Warning>

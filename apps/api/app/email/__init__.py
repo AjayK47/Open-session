@@ -2,6 +2,7 @@ import base64
 import json
 import logging
 import smtplib
+import sys
 import urllib.error
 import urllib.request
 from collections.abc import Sequence
@@ -10,6 +11,7 @@ from email.message import EmailMessage
 from email.utils import formataddr
 
 from app.core.config import settings
+from app.core.outbound_http import request_json
 from app.core.security import new_id
 
 logger = logging.getLogger(__name__)
@@ -80,21 +82,27 @@ def _send_via_cloudflare(message: EmailMessageInput, sender: str) -> str:
         "https://api.cloudflare.com/client/v4/accounts/"
         f"{settings.cloudflare_account_id}/email/sending/send"
     )
-    request = urllib.request.Request(
-        url,
-        data=json.dumps(payload).encode(),
-        headers={
-            "Authorization": f"Bearer {settings.cloudflare_api_token}",
-            "Content-Type": "application/json",
-        },
-        method="POST",
-    )
-    try:
-        with urllib.request.urlopen(request, timeout=15) as response:
-            body = json.loads(response.read().decode() or "{}")
-    except urllib.error.HTTPError as exc:  # pragma: no cover - network path
-        detail = exc.read().decode(errors="replace")[:500]
-        raise RuntimeError(f"Cloudflare rejected the message ({exc.code}): {detail}") from exc
+    headers = {
+        "Authorization": f"Bearer {settings.cloudflare_api_token}",
+        "Content-Type": "application/json",
+    }
+    if sys.platform != "emscripten":
+        # Keep the regular Python transport for Docker and for the existing
+        # deterministic provider tests. Workers do not expose urllib sockets.
+        request = urllib.request.Request(
+            url,
+            data=json.dumps(payload).encode(),
+            headers=headers,
+            method="POST",
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=15) as response:
+                body = json.loads(response.read().decode() or "{}")
+        except urllib.error.HTTPError as exc:  # pragma: no cover - network path
+            detail = exc.read().decode(errors="replace")[:500]
+            raise RuntimeError(f"Cloudflare rejected the message ({exc.code}): {detail}") from exc
+    else:  # pragma: no cover - exercised in the Cloudflare runtime
+        body = request_json("POST", url, headers=headers, body=payload, timeout=15)
 
     # A 200 can still carry success:false, so the body has to be checked too.
     if not body.get("success", False):

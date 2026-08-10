@@ -2,6 +2,9 @@ from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
+from app.email import EmailMessageInput, send_email
+from app.email.templates import branded_email
 from app.models.auth import RoleBinding, User
 from app.repositories import Repositories
 
@@ -35,6 +38,39 @@ def add_member(db: Session, repos: Repositories, event_id: str, email: str, role
     else:
         db.add(RoleBinding(user_id=user.id, event_id=event_id, role=role))
     db.commit()
+
+    event = repos.events.get(event_id)
+    if event:
+        destination = {
+            "reviewer": f"/review/{event.slug}",
+            "speaker": f"/portal/{event.slug}",
+        }.get(role, f"/app/events/{event.id}/dashboard")
+        access_url = f"{settings.web_app_url.rstrip('/')}{destination}"
+        rendered = branded_email(
+            subject=f"Join the {event.name} event team",
+            preheader=f"You have been given {role} access to {event.name}.",
+            eyebrow="Event team invitation",
+            title=f"You’re invited to {event.name}",
+            body_html=(
+                f"<p style=\"margin:0\">You now have <strong>{role}</strong> access. "
+                "Open the workspace and request a one-time sign-in code for this email address.</p>"
+            ),
+            body_text=(
+                f"You now have {role} access to {event.name}. Open the workspace and request a one-time "
+                "sign-in code for this email address."
+            ),
+            action_label="Open event workspace",
+            action_url=access_url,
+            footer=f"Invitation from the {event.name} event team",
+        )
+        send_email(
+            EmailMessageInput(
+                to=email,
+                subject=rendered.subject,
+                html=rendered.html,
+                text=rendered.text,
+            )
+        )
     return {"user_id": user.id, "email": email, "role": role}
 
 

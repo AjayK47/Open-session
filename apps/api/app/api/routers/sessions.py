@@ -223,6 +223,13 @@ def schedule_session(
     for participant in repos.session_participants.list_for_session(scheduled.id):
         person = repos.people.get(participant.person_id)
         if person:
+            recipient_context = {
+                **context,
+                "speaker": {
+                    "first_name": person.first_name or "",
+                    "full_name": " ".join(filter(None, [person.first_name, person.last_name])),
+                },
+            }
             communication_service.send_automated(
                 db,
                 repos,
@@ -230,7 +237,7 @@ def schedule_session(
                 trigger,
                 person.id,
                 person.primary_email,
-                context,
+                recipient_context,
                 related_session_id=scheduled.id,
                 include_ics=ics,
             )

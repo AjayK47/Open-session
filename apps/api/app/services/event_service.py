@@ -2,25 +2,39 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models.auth import AuditEvent, RoleBinding
+from app.models.organization import OrganizationMembership
 from app.models.program import Event
 from app.repositories import Repositories
 from app.schemas.events import EventCreateRequest, EventUpdate
 
-ORG_DEFAULT = "org_default"
-
 
 def list_user_events(db: Session, repos: Repositories, user_id: str) -> list[Event]:
+    org_membership = db.scalar(
+        select(OrganizationMembership).where(
+            OrganizationMembership.user_id == user_id,
+            OrganizationMembership.status == "active",
+            OrganizationMembership.role.in_(("owner", "admin")),
+        )
+    )
+    if org_membership:
+        return repos.events.list_by_organization(org_membership.organization_id)
     bindings = db.scalars(select(RoleBinding).where(RoleBinding.user_id == user_id)).all()
     event_ids = sorted({binding.event_id for binding in bindings})
     return repos.events.list_by_ids(event_ids)
 
 
 def create_event(db: Session, repos: Repositories, user_id: str, payload: EventCreateRequest) -> Event:
+    from app.models.auth import User
+    from app.services import organization_service
+
     if repos.events.get_by_slug(payload.slug):
         raise ValueError("An event with this slug already exists.")
 
+    user = db.get(User, user_id)
+    organization = organization_service.ensure_for_event_creation(db, user)
+
     data = payload.model_dump(exclude={"program"})
-    event = repos.events.create({**data, "organization_id": ORG_DEFAULT, "status": "draft"})
+    event = repos.events.create({**data, "organization_id": organization.id, "status": "draft"})
 
     db.add(RoleBinding(user_id=user_id, event_id=event.id, role="owner"))
 

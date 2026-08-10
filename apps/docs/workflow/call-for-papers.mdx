@@ -1,0 +1,52 @@
+---
+title: Call for papers
+description: "Build conditional submission forms and route proposals by category."
+icon: "file-input"
+---
+
+An event can have multiple forms, each with its own public URL, lifecycle, and
+submission rules.
+
+## Build the form
+
+Use **Forms → New form** inside an event. A form can include:
+
+- sections and custom fields;
+- participant roles for co-speakers and other contributors;
+- required and optional supporting files;
+- conditional rules that show fields only when earlier answers match;
+- routing rules that assign a category from submitted answers;
+- per-person submission limits.
+
+<Note>
+  Conditional rules are enforced by the API as well as the browser. A hidden
+  required field does not block submission, while a visible required field does.
+</Note>
+
+## Publish and share
+
+Publishing creates a public route in the form:
+
+```text
+/submit/{event-slug}/{form-slug}
+```
+
+Speakers can save a draft, return later, manage participants, upload supporting
+files, and submit when the required answers are complete.
+
+## Form lifecycle
+
+| State | Behaviour |
+| --- | --- |
+| Draft | Organizer editing only |
+| Published | Accepts eligible public submissions |
+| Closed | Existing submissions remain available, but new submissions stop |
+
+Duplicate a form when a new call should begin with the same structure without
+changing the already-published form.
+
+## After submission
+
+The proposal appears in the organizer submissions table with its routed category
+and participant records. From there it can enter an evaluation plan or move
+directly to a decision.

@@ -2,9 +2,10 @@ from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_repos
+from app.core.blob_storage import BlobStorage, get_blob_storage
 from app.core.config import settings
 from app.core.db import get_db
-from app.core.rate_limit import check_rate_limit, ip_rate_limit
+from app.core.rate_limit import check_rate_limit, ip_device_rate_limit, ip_rate_limit
 from app.models.auth import User
 from app.repositories import Repositories
 from app.schemas.auth import AuthUserRead, RequestCodeRequest, RequestCodeResponse, VerifyRequest
@@ -15,8 +16,11 @@ from app.services import auth_service, file_service, form_service, public_progra
 
 router = APIRouter(prefix="/api/v1/public", tags=["public"])
 
-_request_code_ip_limit = ip_rate_limit(
-    "auth_request_code", settings.auth_request_code_limit, settings.auth_request_code_window_seconds
+_request_code_ip_limit = ip_device_rate_limit(
+    "auth_request_code",
+    ip_limit=settings.auth_request_code_ip_limit,
+    device_limit=settings.auth_request_code_device_limit,
+    window_seconds=settings.auth_request_code_window_seconds,
 )
 _verify_ip_limit = ip_rate_limit("auth_verify", settings.auth_verify_limit, settings.auth_verify_window_seconds)
 _submission_ip_limit = ip_rate_limit(
@@ -86,7 +90,11 @@ def get_public_program(event_slug: str, repos: Repositories = Depends(get_repos)
 
 
 @router.get("/files/{file_id}/headshot")
-def get_public_headshot(file_id: str, repos: Repositories = Depends(get_repos)):
+async def get_public_headshot(
+    file_id: str,
+    repos: Repositories = Depends(get_repos),
+    storage: BlobStorage = Depends(get_blob_storage),
+):
     """Serve only headshots belonging to a speaker on the public programme."""
     file = repos.files.get(file_id)
     if file is None or file.file_type != "headshot" or not file.person_id:
@@ -97,7 +105,7 @@ def get_public_headshot(file_id: str, repos: Repositories = Depends(get_repos)):
     public_speaker_ids = {speaker["id"] for speaker in public_program_service.public_speakers(repos, event)}
     if file.person_id not in public_speaker_ids:
         raise HTTPException(status_code=404, detail="Headshot not found")
-    file_obj, content = file_service.download(repos, file_id)
+    file_obj, content = await file_service.download(repos, storage, file_id)
     return Response(
         content=content,
         media_type=file_obj.content_type,

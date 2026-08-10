@@ -1,12 +1,17 @@
-# Open Session API docs (Mintlify)
+# Open Session documentation (Mintlify)
 
-This folder is a self-contained [Mintlify](https://mintlify.com) project — the same style of docs SessionBoard itself links to (`sessionboard.mintlify.app`).
+This folder is a self-contained [Mintlify](https://mintlify.com) project for the
+product guides and generated REST API reference.
 
 ## What's in here
 
-- `docs.json` — site config, nav, theme
+- `docs.json` — site configuration, navigation, appearance, and background
 - `openapi.json` — a snapshot of the live API's OpenAPI schema. Mintlify turns this into the full API Reference tab automatically — every endpoint, every request/response shape, with a live "Try it" panel, no hand-written page per route.
-- `introduction.mdx`, `quickstart.mdx`, `authentication.mdx` — the hand-written guide pages.
+- `introduction.mdx`, `quickstart.mdx`, and `configuration.mdx` — setup and deployment basics
+- `workflow/` — CFP, review, speaker, agenda, and publishing guides
+- `integrations/` — calendar and email provider configuration
+- `authentication.mdx` — passwordless sessions, roles, invitations, and API keys
+- `docs-grid-*.svg` — light and dark ambient grid backgrounds shared with the product design language
 
 ## Refreshing the OpenAPI snapshot
 
