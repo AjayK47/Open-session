@@ -143,8 +143,11 @@ the complete setup.
 
 ## Production operations
 
-Production startup does not create or mutate database tables. Run migrations as
-a release step before starting the API:
+The API container runs `alembic upgrade head` on every start, before the server
+comes up (`apps/api/docker-entrypoint.sh`) — a fresh deploy migrates itself, no
+separate release step needed. To run migrations as an explicit step instead
+(e.g. to review the plan before a container restarts), set
+`OPEN_SESSION_RUN_MIGRATIONS=false` for the container and run manually:
 
 ```bash
 cd apps/api
