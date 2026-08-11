@@ -110,7 +110,12 @@ function EventDetailsForm({ event, eventId }: { event: Event; eventId: string })
     },
     onError: (error) => toast.error(error instanceof ApiError ? error.message2 : "Could not save"),
   });
-  const dirty = form.formState.isDirty;
+  // logoFileId/bannerFileId live outside react-hook-form (ImageSettingField
+  // sets them directly via onChange), so isDirty alone never sees a branding
+  // upload — the Save button stayed disabled and the upload was silently
+  // lost the moment nothing else on the form also changed. Comparing against
+  // the event's original file ids catches that case too.
+  const dirty = form.formState.isDirty || logoFileId !== event.logo_file_id || bannerFileId !== event.banner_file_id;
 
   return (
     <form onSubmit={form.handleSubmit((v) => save.mutate(v))}>
