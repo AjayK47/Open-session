@@ -14,6 +14,7 @@ import {
 import { publicApi } from "../api";
 import { useAuth } from "../lib/auth";
 import { EventMark, formatEventDates } from "../components/event-identity";
+import { ThemeToggle } from "../components/theme-toggle";
 
 /**
  * Speaker portal shell.
@@ -51,7 +52,7 @@ export function PortalShell() {
       <header className="sticky top-0 z-30 border-b border-border bg-background/85 backdrop-blur-md">
         <div className="mx-auto max-w-5xl px-4 sm:px-6">
           <div className="flex h-16 items-center gap-3">
-            <EventMark />
+            <EventMark logoUrl={event?.logo_url} />
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-semibold leading-tight text-foreground">
                 {event?.name ?? "Speaker Portal"}
@@ -60,6 +61,7 @@ export function PortalShell() {
                 {dates ? `Speaker portal · ${dates}` : "Speaker portal"}
               </p>
             </div>
+            <ThemeToggle className="shrink-0" />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button

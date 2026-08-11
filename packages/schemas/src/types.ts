@@ -157,6 +157,8 @@ export interface PublicEventSummary {
   timezone: string;
   starts_at: string | null;
   ends_at: string | null;
+  logo_url: string | null;
+  banner_url: string | null;
 }
 
 export interface EventCreateInput {

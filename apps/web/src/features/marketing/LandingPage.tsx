@@ -1,5 +1,6 @@
 import { ArrowRight, CalendarClock, ClipboardCheck, FileText, Github, Megaphone, Share2, UserRound, UsersRound } from "lucide-react";
 import { Link } from "react-router";
+import { ThemeToggleBare } from "../../components/theme-toggle";
 import "./landing.css";
 
 /** Decorative only (aria-hidden) — a scatter of schedule fragments behind the
@@ -107,7 +108,10 @@ export function LandingPage() {
             <a href="https://github.com/AjayK47/Open-session" target="_blank" rel="noreferrer">GitHub</a>
           </nav>
 
-          <Link to="/login" className="os-button">Get started</Link>
+          <div className="os-nav__actions">
+            <ThemeToggleBare className="os-theme-toggle" />
+            <Link to="/login" className="os-button">Get started</Link>
+          </div>
         </header>
 
         <section className="os-hero" aria-labelledby="os-hero-title">

@@ -1,6 +1,7 @@
 import { CalendarDays, MapPin, Megaphone } from "lucide-react";
 import { cn } from "@opensession/ui";
 import type { PublicEventSummary } from "@opensession/schemas";
+import { apiUrl } from "../api/client";
 
 /**
  * Event identity shared by the two speaker-facing surfaces (public CFP, portal).
@@ -43,8 +44,17 @@ export function formatEventDates(event: Pick<PublicEventSummary, "starts_at" | "
 }
 
 /** The square brand mark. Deliberately the same shape in both surfaces so the
- *  CFP and the portal read as one product to a speaker moving between them. */
-export function EventMark({ className }: { className?: string }) {
+ *  CFP and the portal read as one product to a speaker moving between them.
+ *  Falls back to the generic Open Session glyph until the organizer uploads
+ *  an event logo (Event Settings → Branding), then swaps to it automatically. */
+export function EventMark({ logoUrl, className }: { logoUrl?: string | null; className?: string }) {
+  if (logoUrl) {
+    return (
+      <span className={cn("flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-card shadow-sm", className)}>
+        <img src={apiUrl(logoUrl)} alt="" className="size-full object-contain p-1" />
+      </span>
+    );
+  }
   return (
     <span
       className={cn(
@@ -54,6 +64,19 @@ export function EventMark({ className }: { className?: string }) {
     >
       <Megaphone className="size-[55%]" />
     </span>
+  );
+}
+
+/** The wide cover photo for the CFP welcome hero — the single biggest lever on
+ *  whether the page reads as "a real event" or "a bare form." Renders nothing
+ *  until the organizer uploads one (Event Settings → Branding); the hero still
+ *  reads fine without it, this just makes it read *better* once set. */
+export function EventBanner({ bannerUrl, className }: { bannerUrl?: string | null; className?: string }) {
+  if (!bannerUrl) return null;
+  return (
+    <div className={cn("overflow-hidden rounded-2xl border border-border shadow-sm", className)}>
+      <img src={apiUrl(bannerUrl)} alt="" className="aspect-[3/1] w-full object-cover" />
+    </div>
   );
 }
 

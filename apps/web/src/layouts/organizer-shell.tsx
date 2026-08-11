@@ -16,6 +16,7 @@ import { CurrentEventProvider, useCurrentEvent } from "../lib/current-event";
 import { useAuth } from "../lib/auth";
 import { CommandPalette } from "../components/command-palette";
 import { EventSwitcher } from "../components/event-switcher";
+import { ThemeToggle } from "../components/theme-toggle";
 
 /**
  * Organizer chrome.
@@ -119,6 +120,7 @@ function ShellInner() {
                 <HelpCircle />
               </a>
             </Button>
+            <ThemeToggle />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button

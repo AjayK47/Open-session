@@ -26,7 +26,8 @@ import { toast } from "sonner";
 import { publicApi, meApi, ApiError } from "../../api";
 import { useAuth } from "../../lib/auth";
 import { StepProgress } from "../../layouts/public-shell";
-import { AmbientBackdrop, EventMark, EventMeta } from "../../components/event-identity";
+import { AmbientBackdrop, EventBanner, EventMark, EventMeta } from "../../components/event-identity";
+import { ThemeToggle } from "../../components/theme-toggle";
 import { missingRequiredFields } from "../../lib/conditional-rules";
 import { sanitizeHtml } from "../../lib/sanitize-html";
 import { DynamicForm } from "./DynamicForm";
@@ -349,6 +350,7 @@ export function PublicCfpPage() {
     return (
       <div className="relative flex min-h-screen items-center justify-center px-4 py-16">
         <AmbientBackdrop />
+        <ThemeToggle className="fixed right-4 top-4 z-10" />
         <div className="relative w-full max-w-lg text-center">
           <span className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-success/12 text-success">
             <PartyPopper className="size-7" />
@@ -384,8 +386,15 @@ export function PublicCfpPage() {
     return (
       <div className="relative min-h-screen">
         <AmbientBackdrop />
-        <div className="relative mx-auto flex min-h-screen max-w-3xl flex-col justify-center px-5 py-16">
-          <EventMark className="size-11" />
+        <ThemeToggle className="fixed right-4 top-4 z-10" />
+        <div
+          className={cn(
+            "relative mx-auto flex min-h-screen flex-col px-5 py-10 sm:py-16",
+            event?.banner_url ? "max-w-4xl justify-start" : "max-w-3xl justify-center",
+          )}
+        >
+          {event?.banner_url && <EventBanner bannerUrl={event.banner_url} className="mb-10" />}
+          <EventMark logoUrl={event?.logo_url} className="size-11" />
           <p className="mt-6 text-sm font-medium text-primary">{form.event.name}</p>
           <h1 className="mt-2 text-3xl font-semibold tracking-tight text-foreground sm:text-[2.5rem] sm:leading-[1.1]">
             {form.public_title}
@@ -449,13 +458,14 @@ export function PublicCfpPage() {
   return (
     <div className="relative min-h-screen">
       <AmbientBackdrop className="h-[26rem]" />
+      <ThemeToggle className="fixed right-4 top-4 z-10" />
       <div className="relative mx-auto grid max-w-6xl gap-10 px-5 py-10 lg:grid-cols-[19rem_minmax(0,1fr)] lg:gap-14 lg:py-16">
         {/* Identity rail — keeps the speaker anchored to *which* conference they
             are submitting to across every step. Static on mobile, sticky on
             desktop where there's room beside the form. */}
         <aside className="lg:sticky lg:top-16 lg:self-start">
           <div className="flex items-start gap-3">
-            <EventMark />
+            <EventMark logoUrl={event?.logo_url} />
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold text-foreground">{form.event.name}</p>
               <p className="text-xs text-muted-foreground">{form.public_title}</p>
@@ -743,6 +753,7 @@ function CenteredNotice({ children }: { children: React.ReactNode }) {
   return (
     <div className="relative flex min-h-screen items-center justify-center px-4 py-16">
       <AmbientBackdrop />
+      <ThemeToggle className="fixed right-4 top-4 z-10" />
       <div className="relative w-full max-w-md text-center">{children}</div>
     </div>
   );

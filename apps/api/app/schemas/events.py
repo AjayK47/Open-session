@@ -106,6 +106,11 @@ class PublicEventSummary(BaseModel):
     timezone: str
     starts_at: datetime | None
     ends_at: datetime | None
+    # Relative URLs to the two public-serving endpoints below, already resolved
+    # (None when the organizer never uploaded one) — the frontend just renders
+    # them, it never sees logo_file_id/banner_file_id.
+    logo_url: str | None = None
+    banner_url: str | None = None
 
 
 EVENT_TYPE_CHOICES = list(EVENT_TYPES)

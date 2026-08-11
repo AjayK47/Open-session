@@ -47,22 +47,10 @@ def _own_submission(repos: Repositories, user: User, submission_id: str):
     return submission
 
 
-@router.get("/events", response_model=list[PublicEventSummary])
-def list_public_events(repos: Repositories = Depends(get_repos)):
-    """Every event with a published agenda.
-
-    The attendee-facing URLs (/sessions, /agenda, …) carry no slug, so the
-    frontend resolves them through this: one published event means go straight
-    there, several means show a chooser.
-    """
-    return repos.events.list_published()
-
-
-@router.get("/events/{event_slug}", response_model=PublicEventSummary)
-def get_public_event(event_slug: str, repos: Repositories = Depends(get_repos)):
-    event = repos.events.get_by_slug(event_slug)
-    if event is None:
-        raise HTTPException(status_code=404, detail="Event not found")
+def _public_event_summary(event) -> PublicEventSummary:
+    """Branding lives in Event.logo_file_id/banner_file_id — files, not URLs — so
+    every public read of an event resolves them to the serving routes below in
+    one place, rather than each caller reinventing the URL shape."""
     return PublicEventSummary(
         id=event.id,
         name=event.name,
@@ -72,7 +60,67 @@ def get_public_event(event_slug: str, repos: Repositories = Depends(get_repos)):
         timezone=event.timezone,
         starts_at=event.starts_at,
         ends_at=event.ends_at,
+        logo_url=f"/api/v1/public/events/{event.slug}/logo" if event.logo_file_id else None,
+        banner_url=f"/api/v1/public/events/{event.slug}/banner" if event.banner_file_id else None,
     )
+
+
+@router.get("/events", response_model=list[PublicEventSummary])
+def list_public_events(repos: Repositories = Depends(get_repos)):
+    """Every event with a published agenda.
+
+    The attendee-facing URLs (/sessions, /agenda, …) carry no slug, so the
+    frontend resolves them through this: one published event means go straight
+    there, several means show a chooser.
+    """
+    return [_public_event_summary(event) for event in repos.events.list_published()]
+
+
+@router.get("/events/{event_slug}", response_model=PublicEventSummary)
+def get_public_event(event_slug: str, repos: Repositories = Depends(get_repos)):
+    event = repos.events.get_by_slug(event_slug)
+    if event is None:
+        raise HTTPException(status_code=404, detail="Event not found")
+    return _public_event_summary(event)
+
+
+async def _serve_event_image(event_slug: str, file_id: str | None, repos: Repositories, storage: BlobStorage):
+    if file_id is None:
+        raise HTTPException(status_code=404, detail="Not set for this event")
+    file_obj, content = await file_service.download(repos, storage, file_id)
+    return Response(
+        content=content,
+        media_type=file_obj.content_type,
+        headers={"Content-Disposition": f'inline; filename="{file_obj.filename}"'},
+    )
+
+
+@router.get("/events/{event_slug}/logo")
+async def get_public_event_logo(
+    event_slug: str,
+    repos: Repositories = Depends(get_repos),
+    storage: BlobStorage = Depends(get_blob_storage),
+):
+    """Organizer-uploaded event logo (Event Settings → Branding). The organizer
+    chose to make this public the moment they attached it to the event — there's
+    no separate publish step, unlike a submission or a session."""
+    event = repos.events.get_by_slug(event_slug)
+    if event is None:
+        raise HTTPException(status_code=404, detail="Event not found")
+    return await _serve_event_image(event_slug, event.logo_file_id, repos, storage)
+
+
+@router.get("/events/{event_slug}/banner")
+async def get_public_event_banner(
+    event_slug: str,
+    repos: Repositories = Depends(get_repos),
+    storage: BlobStorage = Depends(get_blob_storage),
+):
+    """Organizer-uploaded cover image, same rationale as the logo above."""
+    event = repos.events.get_by_slug(event_slug)
+    if event is None:
+        raise HTTPException(status_code=404, detail="Event not found")
+    return await _serve_event_image(event_slug, event.banner_file_id, repos, storage)
 
 
 @router.get("/events/{event_slug}/program")
