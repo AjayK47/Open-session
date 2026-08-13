@@ -5,14 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Open Session</title>
     <script>
-      // Applies the stored/system theme before first paint — without this the
-      // page always flashes dark (the design's default) for a frame even when
-      // the visitor has chosen light. Kept in sync with src/lib/theme.ts.
+      // Applies the stored theme before first paint — without this the page
+      // always flashes dark (the default) for a frame even when the visitor
+      // previously chose light. Dark is the default for everyone regardless
+      // of OS/browser preference; kept in sync with src/lib/theme.ts.
       (function () {
         try {
-          var stored = localStorage.getItem("open-session-theme");
-          var light = stored === "light" || (stored !== "dark" && matchMedia("(prefers-color-scheme: light)").matches);
-          if (light) document.documentElement.classList.add("light");
+          if (localStorage.getItem("open-session-theme") === "light") {
+            document.documentElement.classList.add("light");
+          }
         } catch (e) {}
       })();
     </script>
