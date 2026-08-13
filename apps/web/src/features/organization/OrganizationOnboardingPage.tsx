@@ -7,12 +7,11 @@ import { organizationSchema } from "@opensession/schemas";
 import type { OrganizationInput } from "@opensession/schemas";
 import type { z } from "zod";
 import { ArrowRight, Building2, Check, ImagePlus, Megaphone } from "lucide-react";
-import { Button, Input, Label, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Textarea } from "@opensession/ui";
+import { Button, IconChip, Input, Label, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Textarea } from "@opensession/ui";
 import { toast } from "sonner";
 import { organizationApi, ApiError } from "../../api";
 import { ORGANIZATION_CONTEXT_KEY, useOrganizationContext } from "../../lib/organization";
 import { TIMEZONES } from "../../lib/timezones";
-import "./onboarding.css";
 
 type Values = z.infer<typeof organizationSchema>;
 
@@ -69,16 +68,46 @@ export function OrganizationOnboardingPage() {
   if (isLoading) return null;
 
   return (
-    <div className="os-onboarding grid h-screen overflow-hidden bg-background lg:grid-cols-[.82fr_1.18fr]">
-      <aside className="relative hidden overflow-hidden border-r border-border bg-[#20231e] p-10 text-white lg:flex lg:flex-col">
-        <div aria-hidden className="absolute inset-0 opacity-70" style={{ backgroundImage: "radial-gradient(50rem 38rem at 0% 100%, rgba(239,91,54,.3), transparent 60%),radial-gradient(42rem 30rem at 100% 0%, rgba(126,160,113,.22), transparent 58%)" }} />
-        <div className="relative flex items-center gap-2.5"><span className="flex size-9 items-center justify-center rounded-xl bg-[#ef5b36]"><Megaphone className="size-4.5" /></span><span className="font-semibold">Open Session</span></div>
+    <div className="grid h-screen overflow-hidden bg-background lg:grid-cols-[.82fr_1.18fr]">
+      {/* Same recipe as the login page's brand panel (bg-sidebar + a
+       *  color-mix primary/track glow), not a separate hardcoded palette —
+       *  the two first-run screens a visitor sees should look like one
+       *  product in both light and dark, not switch identities. */}
+      <aside className="relative hidden overflow-hidden bg-sidebar p-10 lg:flex lg:flex-col">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 opacity-[0.5]"
+          style={{
+            backgroundImage:
+              "radial-gradient(60rem 40rem at 15% 12%, color-mix(in oklch, var(--primary) 26%, transparent), transparent 62%), radial-gradient(46rem 34rem at 92% 88%, color-mix(in oklch, var(--track-5) 22%, transparent), transparent 60%)",
+          }}
+        />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 opacity-[0.035]"
+          style={{
+            backgroundImage:
+              "linear-gradient(to right, var(--foreground) 1px, transparent 1px), linear-gradient(to bottom, var(--foreground) 1px, transparent 1px)",
+            backgroundSize: "44px 44px",
+          }}
+        />
+
+        <div className="relative flex items-center gap-2.5">
+          <span className="flex size-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm"><Megaphone className="size-4.5" /></span>
+          <span className="text-[15px] font-semibold tracking-tight text-foreground">Open Session</span>
+        </div>
+
         <div className="relative mt-auto max-w-md">
-          <p className="text-xs font-semibold uppercase tracking-[.18em] text-[#ef9b83]">First-run setup</p>
-          <h1 className="mt-3 font-serif text-4xl leading-[1.05] tracking-tight">Give every event a place to belong.</h1>
-          <p className="mt-4 text-[15px] leading-6 text-white/60">Your organization holds the team, brand, and events for this deployment. You can change these details whenever you need.</p>
-          <ul className="mt-6 space-y-2.5 text-sm text-white/75">
-            {["Private organizer workspace", "Passwordless team access", "Shared identity across every event"].map(item => <li key={item} className="flex items-center gap-3"><span className="flex size-6 items-center justify-center rounded-full bg-white/10"><Check className="size-3.5" /></span>{item}</li>)}
+          <p className="text-xs font-semibold uppercase tracking-[.18em] text-primary">First-run setup</p>
+          <h1 className="mt-3 text-[32px] font-semibold leading-[1.15] tracking-tight text-foreground">Give every event a place to belong.</h1>
+          <p className="mt-3 text-[15px] leading-relaxed text-muted-foreground">Your organization holds the team, brand, and events for this deployment. You can change these details whenever you need.</p>
+          <ul className="mt-8 space-y-3">
+            {["Private organizer workspace", "Passwordless team access", "Shared identity across every event"].map(item => (
+              <li key={item} className="flex items-center gap-3">
+                <IconChip tone="brand" size="sm"><Check /></IconChip>
+                <span className="text-sm text-muted-foreground">{item}</span>
+              </li>
+            ))}
           </ul>
         </div>
       </aside>
