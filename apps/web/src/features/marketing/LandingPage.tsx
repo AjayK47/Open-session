@@ -44,7 +44,10 @@ const steps = [
 /** Real screens from the app, captured live against a real event, not
  *  mockups — see apps/web/public/showcase/. */
 const tour = [
-  { key: "dashboard", label: "Dashboard", src: "/showcase/dashboard.webp", alt: "Organizer dashboard showing submission counts, accepted speakers, and scheduled sessions" },
+  // ?v= busts Cloudflare's CDN cache for this path (public/ assets aren't
+  // content-hashed by Vite, so the URL never otherwise changes) — bump it
+  // whenever this specific screenshot is replaced.
+  { key: "dashboard", label: "Dashboard", src: "/showcase/dashboard.webp?v=2", alt: "Organizer dashboard showing submission counts, accepted speakers, and scheduled sessions" },
   { key: "submissions", label: "Submissions", src: "/showcase/submissions.webp", alt: "Submissions list with status, track, speakers, and rating columns" },
   { key: "agenda", label: "Agenda", src: "/showcase/agenda.webp", alt: "Drag-and-drop agenda builder with sessions placed across a day's schedule" },
   { key: "speakers", label: "Speakers", src: "/showcase/speakers.webp", alt: "Speaker roster with workflow and confirmation status per person" },
