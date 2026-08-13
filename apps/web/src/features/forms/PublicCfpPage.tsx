@@ -29,6 +29,7 @@ import { StepProgress } from "../../layouts/public-shell";
 import { AmbientBackdrop, EventBanner, EventMark, EventMeta } from "../../components/event-identity";
 import { ThemeToggle } from "../../components/theme-toggle";
 import { missingRequiredFields } from "../../lib/conditional-rules";
+import { usePageMeta } from "../../lib/page-meta";
 import { sanitizeHtml } from "../../lib/sanitize-html";
 import { DynamicForm } from "./DynamicForm";
 import { ParticipantListEditor } from "../../components/participant-list-editor";
@@ -67,6 +68,11 @@ export function PublicCfpPage() {
     queryFn: () => publicApi.getEvent(eventSlug!),
     enabled: Boolean(eventSlug),
   });
+
+  usePageMeta(
+    form ? `${form.public_title} — ${form.event.name} | Open Session` : undefined,
+    form?.event.description,
+  );
 
   // Prefill the signed-in speaker as presenter #1 — the server does the same on
   // an empty list, and seeing themselves already listed is what stops a solo

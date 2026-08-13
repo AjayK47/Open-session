@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Deliberately just the marketing page. Every other public URL (an event's
+  /e/:slug/* widgets) is created by whoever self-hosts this, so a static file
+  shipped with the app can't know about them without going stale the moment
+  someone publishes an event — better to list nothing than list something
+  wrong. A self-hosted deployment with real events should replace this with
+  one generated from its own published events.
+-->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://session.drawset.com/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+</urlset>

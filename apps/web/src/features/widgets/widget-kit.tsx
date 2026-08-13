@@ -6,6 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage, Input, cn } from "@opensession/ui"
 import type { PublicProgram, PublicSession, PublicSpeaker } from "@opensession/schemas";
 import { publicApi, filesApi } from "../../api";
 import { EventMark } from "../../components/event-identity";
+import { usePageMeta } from "../../lib/page-meta";
 import { sanitizeHtml } from "../../lib/sanitize-html";
 
 /**
@@ -213,6 +214,14 @@ export function WidgetShell({
   const { pathname } = useLocation();
   const [searchParams] = useSearchParams();
   const theme = searchParams.get("theme");
+
+  // Every embeddable widget shares this shell, so this is the one place that
+  // needs to set it — without it every widget's tab/link-preview just said
+  // "Open Session" regardless of which event or which surface it was.
+  usePageMeta(
+    program ? `${title} — ${program.event.name} | Open Session` : undefined,
+    program?.event.description,
+  );
 
   const tabs = useMemo(
     () => [

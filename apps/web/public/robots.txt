@@ -1,0 +1,13 @@
+User-agent: *
+Allow: /
+# Nothing here is genuinely private (organizer/speaker/reviewer routes are
+# behind session auth regardless), but there's no reason to spend crawl
+# budget on account-only screens that always redirect an anonymous visitor
+# to /login.
+Disallow: /app/
+Disallow: /onboarding
+Disallow: /invitations/accept
+Disallow: /portal/
+Disallow: /review/
+
+Sitemap: https://session.drawset.com/sitemap.xml
