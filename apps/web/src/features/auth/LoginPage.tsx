@@ -101,12 +101,12 @@ export function LoginPage() {
           }}
         />
 
-        <div className="relative flex items-center gap-2.5">
+        <Link to="/" className="relative flex w-fit items-center gap-2.5" aria-label="Open Session home">
           <span className="flex size-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm">
             <Megaphone className="size-4.5" />
           </span>
           <span className="text-[15px] font-semibold tracking-tight text-foreground">Open Session</span>
-        </div>
+        </Link>
 
         <div className="relative mt-auto max-w-md">
           <h1 className="text-[32px] font-semibold leading-[1.15] tracking-tight text-foreground">
@@ -135,12 +135,12 @@ export function LoginPage() {
 
       <main className="flex items-center justify-center px-6 py-12">
         <div className="w-full max-w-[22rem]">
-          <div className="mb-8 flex items-center gap-2.5 lg:hidden">
+          <Link to="/" className="mb-8 flex w-fit items-center gap-2.5 lg:hidden" aria-label="Open Session home">
             <span className="flex size-9 items-center justify-center rounded-xl bg-primary text-primary-foreground">
               <Megaphone className="size-4.5" />
             </span>
             <span className="text-[15px] font-semibold text-foreground">Open Session</span>
-          </div>
+          </Link>
 
           <h2 className="text-2xl font-semibold tracking-tight text-foreground">
             {stage === "email" ? "Sign in" : "Check your email"}

@@ -27,6 +27,14 @@ const TABS: { key: DashTab; label: string; dot: string }[] = [
   { key: "agenda_tab", label: "Agenda", dot: "var(--track-6)" },
 ];
 
+/** Last-resort greeting when there's no name on the profile: the email local
+ *  part, trimmed at the first "." or "+" (so "jane.doe@example.com" reads as
+ *  "Jane", not "jane.doe") and capitalized. */
+function emailNameFallback(email: string | undefined): string {
+  const local = email?.split("@")[0]?.split(/[.+]/)[0] ?? "";
+  return local ? local[0]!.toUpperCase() + local.slice(1) : "";
+}
+
 export function DashboardPage() {
   const { event, eventId } = useCurrentEvent();
   const { user } = useAuth();
@@ -39,12 +47,13 @@ export function DashboardPage() {
   const { data: profile } = useQuery({ queryKey: ["me", "profile"], queryFn: meApi.profile, enabled: Boolean(user) });
 
   const daysToEvent = event?.starts_at ? differenceInCalendarDays(new Date(event.starts_at), new Date()) : null;
-  // Prefer the organizer's actual name (set on their Person profile) — the
-  // email's local part is a fallback for accounts that never filled it in,
-  // not the default a signed-in person should see every morning.
+  // Prefer the organizer's actual name (set on their Person profile). The raw
+  // email local part read like a broken template for accounts that never set
+  // one; emailNameFallback at least trims it down to the part that looks
+  // like a name.
   const greetingName = profile?.first_name
     ? [profile.first_name, profile.last_name].filter(Boolean).join(" ")
-    : (user?.email?.split("@")[0] ?? "");
+    : emailNameFallback(user?.email);
 
   const statusCounts = useMemo(() => {
     const counts: Record<string, number> = { accepted: 0, pending_review: 0, declined: 0, draft: 0, withdrawn: 0 };

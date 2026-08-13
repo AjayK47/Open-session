@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { organizationSchema } from "@opensession/schemas";
 import type { OrganizationInput } from "@opensession/schemas";
 import type { z } from "zod";
@@ -92,10 +92,10 @@ export function OrganizationOnboardingPage() {
           }}
         />
 
-        <div className="relative flex items-center gap-2.5">
+        <Link to="/" className="relative flex w-fit items-center gap-2.5" aria-label="Open Session home">
           <span className="flex size-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm"><Megaphone className="size-4.5" /></span>
           <span className="text-[15px] font-semibold tracking-tight text-foreground">Open Session</span>
-        </div>
+        </Link>
 
         <div className="relative mt-auto max-w-md">
           <p className="text-xs font-semibold uppercase tracking-[.18em] text-primary">First-run setup</p>
