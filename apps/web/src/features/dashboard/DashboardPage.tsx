@@ -4,7 +4,7 @@ import { Link } from "react-router";
 import { differenceInCalendarDays, format } from "date-fns";
 import { ArrowRight, CalendarDays, FileText, ListChecks, Users } from "lucide-react";
 import { cn } from "@opensession/ui";
-import { dashboardApi, submissionsApi, speakersApi, evaluationsApi, programApi, sessionsApi, formsApi } from "../../api";
+import { dashboardApi, submissionsApi, speakersApi, evaluationsApi, programApi, sessionsApi, formsApi, meApi } from "../../api";
 import { useAuth } from "../../lib/auth";
 import { useCurrentEvent } from "../../lib/current-event";
 import { StatTile } from "../../components/stat-tile";
@@ -36,9 +36,15 @@ export function DashboardPage() {
   const { data: submissions = [] } = useQuery({ queryKey: ["submissions", eventId], queryFn: () => submissionsApi.list(eventId), enabled: Boolean(eventId) });
   const { data: tracks = [] } = useQuery({ queryKey: ["tracks", eventId], queryFn: () => programApi.tracks.list(eventId), enabled: Boolean(eventId) });
   const { data: forms = [] } = useQuery({ queryKey: ["forms", eventId], queryFn: () => formsApi.list(eventId), enabled: Boolean(eventId) });
+  const { data: profile } = useQuery({ queryKey: ["me", "profile"], queryFn: meApi.profile, enabled: Boolean(user) });
 
   const daysToEvent = event?.starts_at ? differenceInCalendarDays(new Date(event.starts_at), new Date()) : null;
-  const greetingName = user?.email?.split("@")[0] ?? "";
+  // Prefer the organizer's actual name (set on their Person profile) — the
+  // email's local part is a fallback for accounts that never filled it in,
+  // not the default a signed-in person should see every morning.
+  const greetingName = profile?.first_name
+    ? [profile.first_name, profile.last_name].filter(Boolean).join(" ")
+    : (user?.email?.split("@")[0] ?? "");
 
   const statusCounts = useMemo(() => {
     const counts: Record<string, number> = { accepted: 0, pending_review: 0, declined: 0, draft: 0, withdrawn: 0 };

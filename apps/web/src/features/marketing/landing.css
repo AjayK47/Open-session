@@ -361,6 +361,10 @@ body {
   position: absolute;
   inset: -10% -6%;
   z-index: 0;
+  /* Decorative and aria-hidden, but its negative inset bleeds up past the
+   * window's top edge into the tab bar above — without this it silently
+   * intercepted clicks on the lower two-thirds of each tab. */
+  pointer-events: none;
   background-image:
     radial-gradient(38rem 20rem at 12% 15%, color-mix(in oklch, var(--track-1) 55%, transparent), transparent 60%),
     radial-gradient(34rem 20rem at 88% 20%, color-mix(in oklch, var(--track-5) 50%, transparent), transparent 60%),
