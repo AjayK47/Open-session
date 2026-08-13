@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { ArrowRight, CalendarClock, ClipboardCheck, FileText, Github, Megaphone, Share2, UserRound, UsersRound } from "lucide-react";
 import { Link } from "react-router";
 import { ThemeToggleBare } from "../../components/theme-toggle";
@@ -38,6 +39,17 @@ const steps = [
   { title: "Open your CFP", body: "Publish a branded submission form with conditional logic and category routing in minutes." },
   { title: "Review, assign, schedule", body: "Score proposals, assign reviewers, and drag sessions into a conflict-free agenda." },
   { title: "Publish everywhere", body: "Push the agenda, speakers, and itinerary live as embeddable public pages." },
+];
+
+/** Real screens from the app, captured live against a real event, not
+ *  mockups — see apps/web/public/showcase/. */
+const tour = [
+  { key: "dashboard", label: "Dashboard", src: "/showcase/dashboard.webp", alt: "Organizer dashboard showing submission counts, accepted speakers, and scheduled sessions" },
+  { key: "submissions", label: "Submissions", src: "/showcase/submissions.webp", alt: "Submissions list with status, track, speakers, and rating columns" },
+  { key: "agenda", label: "Agenda", src: "/showcase/agenda.webp", alt: "Drag-and-drop agenda builder with sessions placed across a day's schedule" },
+  { key: "speakers", label: "Speakers", src: "/showcase/speakers.webp", alt: "Speaker roster with workflow and confirmation status per person" },
+  { key: "embeds", label: "Embeds", src: "/showcase/embeds.webp", alt: "Embed and share panel with public links and iframe snippets" },
+  { key: "public", label: "Public site", src: "/showcase/public.webp", alt: "The public agenda page an attendee would actually see" },
 ];
 
 const programme = [
@@ -92,6 +104,9 @@ function FrameTicks() {
 }
 
 export function LandingPage() {
+  const [tab, setTab] = useState(0);
+  const active = tour[tab] ?? tour[0]!;
+
   return (
     <div className="os-landing">
       <div className="os-frame">
@@ -142,6 +157,37 @@ export function LandingPage() {
               <a className="os-text-link" href="https://github.com/AjayK47/Open-session" target="_blank" rel="noreferrer">
                 <Github /> View source
               </a>
+            </div>
+          </div>
+        </section>
+
+        <section className="os-tour" aria-labelledby="os-tour-title">
+          <p id="os-tour-title" className="os-visual__label os-tour__label">Every screen, from a real event</p>
+          <div className="os-tour__tabs" role="tablist" aria-label="App screens">
+            {tour.map((screen, i) => (
+              <button
+                key={screen.key}
+                type="button"
+                role="tab"
+                aria-selected={i === tab}
+                className="os-tour__tab"
+                data-active={i === tab || undefined}
+                onClick={() => setTab(i)}
+              >
+                {screen.label}
+              </button>
+            ))}
+          </div>
+          <div className="os-tour__stage">
+            <div className="os-tour__glow" aria-hidden="true" />
+            <div className="os-tour__window">
+              <div className="os-tour__chrome">
+                <span className="os-tour__dot" aria-hidden="true" />
+                <span className="os-tour__dot" aria-hidden="true" />
+                <span className="os-tour__dot" aria-hidden="true" />
+                <span className="os-tour__url">your-event.com — {active.label.toLowerCase()}</span>
+              </div>
+              <img src={active.src} alt={active.alt} className="os-tour__image" loading="lazy" />
             </div>
           </div>
         </section>

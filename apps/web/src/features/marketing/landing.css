@@ -301,6 +301,120 @@ body {
   margin-top: 2rem;
 }
 
+/* ── Product tour (real screens, tab-switched) ──────────────────────── */
+
+.os-tour {
+  padding: 0 var(--os-gutter) clamp(2.5rem, 6vw, 4rem);
+}
+
+.os-tour__label {
+  margin: 0 0 1.25rem;
+  text-align: center;
+}
+
+.os-tour__tabs {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.3rem;
+  width: fit-content;
+  max-width: 100%;
+  margin: 0 auto 1.75rem;
+  padding: 0.3rem;
+  overflow-x: auto;
+  background: var(--muted);
+  border-radius: 999px;
+}
+
+.os-tour__tab {
+  flex-shrink: 0;
+  padding: 0.55rem 1.05rem;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted-foreground);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 140ms ease, color 140ms ease;
+}
+
+.os-tour__tab:hover {
+  color: var(--foreground);
+}
+
+.os-tour__tab[data-active] {
+  background: var(--card);
+  color: var(--foreground);
+  box-shadow: 0 1px 2px color-mix(in oklch, var(--shadow-ink, #000) 12%, transparent);
+}
+
+.os-tour__stage {
+  position: relative;
+  width: min(100%, 64rem);
+  margin: 0 auto;
+}
+
+.os-tour__glow {
+  position: absolute;
+  inset: -10% -6%;
+  z-index: 0;
+  background-image:
+    radial-gradient(38rem 20rem at 12% 15%, color-mix(in oklch, var(--track-1) 55%, transparent), transparent 60%),
+    radial-gradient(34rem 20rem at 88% 20%, color-mix(in oklch, var(--track-5) 50%, transparent), transparent 60%),
+    radial-gradient(30rem 18rem at 50% 100%, color-mix(in oklch, var(--track-3) 45%, transparent), transparent 60%);
+  opacity: 0.5;
+  filter: blur(2.5rem);
+}
+
+.os-tour__window {
+  position: relative;
+  z-index: 1;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--card);
+  box-shadow: 0 30px 70px color-mix(in oklch, var(--shadow-ink, #000) 22%, transparent);
+}
+
+.os-tour__chrome {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.7rem 0.9rem;
+  border-bottom: 1px solid var(--border);
+  background: color-mix(in oklch, var(--muted) 60%, var(--card));
+}
+
+.os-tour__dot {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 50%;
+  background: color-mix(in oklch, var(--foreground) 20%, transparent);
+}
+
+.os-tour__url {
+  margin-left: 0.6rem;
+  padding: 0.25rem 0.7rem;
+  color: var(--muted-foreground);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  background: var(--background);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+}
+
+.os-tour__image {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1536 / 784;
+  object-fit: cover;
+  object-position: top;
+}
+
 /* ── Visual panel (schedule strip) ──────────────────────────────────── */
 
 .os-visual {
@@ -621,6 +735,10 @@ body {
   .os-actions {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .os-tour__url {
+    display: none;
   }
 }
 
