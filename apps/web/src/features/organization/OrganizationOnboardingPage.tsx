@@ -6,10 +6,11 @@ import { Link, useNavigate } from "react-router";
 import { organizationSchema } from "@opensession/schemas";
 import type { OrganizationInput } from "@opensession/schemas";
 import type { z } from "zod";
-import { ArrowRight, Building2, Check, ImagePlus, Megaphone } from "lucide-react";
+import { ArrowRight, Building2, Check, ImagePlus, LogOut, Megaphone } from "lucide-react";
 import { Button, IconChip, Input, Label, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Textarea } from "@opensession/ui";
 import { toast } from "sonner";
 import { organizationApi, ApiError } from "../../api";
+import { useAuth } from "../../lib/auth";
 import { ORGANIZATION_CONTEXT_KEY, useOrganizationContext } from "../../lib/organization";
 import { TIMEZONES } from "../../lib/timezones";
 
@@ -21,6 +22,7 @@ function slugify(value: string) {
 
 export function OrganizationOnboardingPage() {
   const { data: context, isLoading } = useOrganizationContext();
+  const { user, logout } = useAuth();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [logo, setLogo] = useState<File | null>(null);
@@ -68,7 +70,20 @@ export function OrganizationOnboardingPage() {
   if (isLoading) return null;
 
   return (
-    <div className="grid h-screen overflow-hidden bg-background lg:grid-cols-[.82fr_1.18fr]">
+    <div className="relative grid h-screen overflow-hidden bg-background lg:grid-cols-[.82fr_1.18fr]">
+      {/* Signed-in visitors land here with no other route available until an
+       *  org exists — without this there was no way back to /login short of
+       *  clearing cookies. */}
+      <button
+        type="button"
+        onClick={() => void logout()}
+        title={user?.email ? `Signed in as ${user.email}` : undefined}
+        className="absolute right-4 top-4 z-10 flex max-w-[calc(100%-2rem)] items-center gap-1.5 rounded-full border border-border bg-card/80 px-3 py-1.5 text-xs text-muted-foreground backdrop-blur transition-colors hover:text-foreground"
+      >
+        <LogOut className="size-3.5 shrink-0" />
+        <span className="truncate">{user?.email ? `Sign out (${user.email})` : "Sign out"}</span>
+      </button>
+
       {/* Same recipe as the login page's brand panel (bg-sidebar + a
        *  color-mix primary/track glow), not a separate hardcoded palette —
        *  the two first-run screens a visitor sees should look like one
