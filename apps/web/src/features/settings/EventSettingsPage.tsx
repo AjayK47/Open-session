@@ -30,25 +30,13 @@ import { useCurrentEvent } from "../../lib/current-event";
 import { FileUploader } from "../../components/file-uploader";
 import { Field, FieldError, ClearableDateTime } from "../../components/form-field";
 import { PageHeader } from "../../layouts/page";
+import { TIMEZONES } from "../../lib/timezones";
 
 const EVENT_TYPES = [
   { value: "conference", label: "Conference" },
   { value: "summit", label: "Summit" },
   { value: "meetup", label: "Meetup" },
   { value: "other", label: "Other" },
-];
-
-const TIMEZONES = [
-  "UTC",
-  "America/Los_Angeles",
-  "America/Denver",
-  "America/Chicago",
-  "America/New_York",
-  "Europe/London",
-  "Europe/Berlin",
-  "Asia/Kolkata",
-  "Asia/Singapore",
-  "Australia/Sydney",
 ];
 
 const schema = eventBasicsSchema.partial({ starts_at: true, ends_at: true, name: true, slug: true, type: true, timezone: true });
