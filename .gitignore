@@ -20,7 +20,9 @@ apps/api/data/files/
 coverage/
 
 # Internal planning docs — working notes for building the repo, not part of
-# the deliverable itself.
+# the deliverable itself. The .docx source briefs are also ~39 MB of binary
+# that git cannot diff, so they stay local.
+*.docx
 BACKEND_PLAN.md
 EVAL_TODO.md
 EVALUATION.md
