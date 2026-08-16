@@ -13,3 +13,5 @@ apps/api/data
 evals
 *.docx
 design.md
+video
+apps/web/public/film

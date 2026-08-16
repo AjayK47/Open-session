@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { ArrowRight, CalendarClock, ClipboardCheck, FileText, Github, Megaphone, Share2, UserRound, UsersRound } from "lucide-react";
+import { useRef, useState } from "react";
+import { ArrowRight, CalendarClock, ClipboardCheck, FileText, Github, Megaphone, Play, Share2, UserRound, UsersRound } from "lucide-react";
 import { Link } from "react-router";
 import { ThemeToggleBare } from "../../components/theme-toggle";
 import "./landing.css";
@@ -110,6 +110,27 @@ export function LandingPage() {
   const [tab, setTab] = useState(0);
   const active = tour[tab] ?? tour[0]!;
 
+  // The film is ~7 MB, so it stays at preload="none" behind a poster and only
+  // downloads once someone actually asks for it. Controls appear at the same
+  // moment for the same reason: before playback there is nothing to control.
+  const [filmStarted, setFilmStarted] = useState(false);
+  const filmRef = useRef<HTMLVideoElement>(null);
+
+  const startFilm = () => {
+    setFilmStarted(true);
+    const el = filmRef.current;
+    if (!el) return;
+    // With preload="none" the element has no source loaded yet, and calling
+    // play() straight off can sit in a permanent stall. load() commits to the
+    // source first; play() then resolves normally.
+    el.load();
+    void el.play().catch(() => {
+      // Autoplay policy or a decode failure: leave the native controls up so
+      // the viewer can start it themselves rather than staring at a dead frame.
+      setFilmStarted(true);
+    });
+  };
+
   return (
     <div className="os-landing">
       <div className="os-frame">
@@ -162,6 +183,44 @@ export function LandingPage() {
               </a>
             </div>
           </div>
+        </section>
+
+        <section className="os-film" aria-labelledby="os-film-title">
+          <p id="os-film-title" className="os-visual__label os-film__label">
+            Watch it work — two minutes, end to end
+          </p>
+          <div className="os-film__stage">
+            <div className="os-tour__glow" aria-hidden="true" />
+            <div className="os-film__window" data-started={filmStarted || undefined}>
+              <video
+                ref={filmRef}
+                className="os-film__video"
+                poster="/film/open-session-poster.jpg"
+                preload="none"
+                controls={filmStarted}
+                playsInline
+                onEnded={() => setFilmStarted(false)}
+              >
+                <source src="/film/open-session.mp4" type="video/mp4" />
+                Your browser cannot play this video.{" "}
+                <a href="/film/open-session.mp4">Download it instead.</a>
+              </video>
+
+              {!filmStarted && (
+                <button type="button" className="os-film__cover" onClick={startFilm}>
+                  <span className="os-film__play" aria-hidden="true"><Play /></span>
+                  <span className="os-film__cta">
+                    Play the product film
+                    <span className="os-film__runtime">2:26</span>
+                  </span>
+                </button>
+              )}
+            </div>
+          </div>
+          <p className="os-film__caption">
+            CFP to published agenda, including the conflict detection catching a
+            double-booked speaker.
+          </p>
         </section>
 
         <section className="os-tour" aria-labelledby="os-tour-title">

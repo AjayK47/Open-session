@@ -303,6 +303,122 @@ body {
 
 /* ── Product tour (real screens, tab-switched) ──────────────────────── */
 
+/* ── Product film ───────────────────────────────────────────────────── */
+
+.os-film {
+  padding: 0 var(--os-gutter) clamp(2.5rem, 6vw, 4rem);
+}
+
+.os-film__label {
+  margin: 0 0 1.25rem;
+  text-align: center;
+}
+
+.os-film__stage {
+  position: relative;
+  width: min(100%, 64rem);
+  margin: 0 auto;
+}
+
+.os-film__window {
+  position: relative;
+  z-index: 1;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  /* The film is letterboxed on its own near-black canvas, so the window sits
+   * on that rather than --card: any lighter surface shows as a seam around
+   * the frame once playback starts. */
+  background: #08080a;
+  box-shadow: 0 30px 70px color-mix(in oklch, var(--shadow-ink, #000) 22%, transparent);
+}
+
+.os-film__video {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 9;
+}
+
+/* Sits over the poster until playback starts, then unmounts so it can never
+ * swallow clicks meant for the native controls. */
+.os-film__cover {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 0;
+  border: none;
+  background: linear-gradient(
+    to bottom,
+    color-mix(in oklch, #08080a 25%, transparent),
+    color-mix(in oklch, #08080a 62%, transparent)
+  );
+  cursor: pointer;
+  transition: background 160ms ease;
+}
+
+.os-film__cover:hover {
+  background: color-mix(in oklch, #08080a 42%, transparent);
+}
+
+.os-film__play {
+  display: grid;
+  place-items: center;
+  width: clamp(3.4rem, 7vw, 4.6rem);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: var(--primary);
+  color: var(--primary-foreground);
+  box-shadow: 0 0 0 1px color-mix(in oklch, #fff 22%, transparent),
+    0 18px 44px color-mix(in oklch, var(--primary) 45%, transparent);
+  transition: transform 160ms ease;
+}
+
+.os-film__play svg {
+  width: 44%;
+  height: 44%;
+  /* The glyph's visual centre sits left of its bounding box. */
+  margin-left: 8%;
+  fill: currentColor;
+}
+
+.os-film__cover:hover .os-film__play,
+.os-film__cover:focus-visible .os-film__play {
+  transform: scale(1.06);
+}
+
+.os-film__cta {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  color: #f6f6f7;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.os-film__runtime {
+  padding: 0.2rem 0.55rem;
+  border: 1px solid color-mix(in oklch, #fff 26%, transparent);
+  border-radius: 999px;
+  color: color-mix(in oklch, #f6f6f7 72%, transparent);
+  letter-spacing: 0.04em;
+}
+
+.os-film__caption {
+  width: min(100%, 46rem);
+  margin: 1.15rem auto 0;
+  color: var(--muted-foreground);
+  font-size: 0.92rem;
+  text-align: center;
+}
+
 .os-tour {
   padding: 0 var(--os-gutter) clamp(2.5rem, 6vw, 4rem);
 }
@@ -744,12 +860,24 @@ body {
   .os-tour__url {
     display: none;
   }
+
+  .os-film__cta {
+    font-size: 0.7rem;
+    text-align: center;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .os-button,
-  .os-text-link {
+  .os-text-link,
+  .os-film__cover,
+  .os-film__play {
     transition: none;
+  }
+
+  .os-film__cover:hover .os-film__play,
+  .os-film__cover:focus-visible .os-film__play {
+    transform: none;
   }
 
   .os-card__live-dot {

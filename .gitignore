@@ -30,6 +30,17 @@ frontend_implementation_plan.md
 FRONTEND_PLAN.md
 open_sessionboard_product_plan.md
 
+# The Remotion project that produces the product film, plus its rendered
+# output. It is a separate production with its own node_modules, a multi-MB
+# soundtrack and 25 MB renders — build tooling for a marketing asset, not part
+# of the application. The film is hosted outside the repo.
+video/
+
+# Rendered film served by the web app. Kept out of git for the same reason as
+# the .docx briefs: multi-MB binary that git cannot diff. Supplied at deploy
+# time or served from an external URL, see VITE_FILM_URL.
+apps/web/public/film/
+
 # The organizer's own grading harness — a clone of a third-party repo used for
 # local testing, not part of this submission. Would also push as a broken
 # submodule reference (it has its own .git) rather than real content.
