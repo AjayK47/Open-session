@@ -38,11 +38,41 @@ class OrganizationRead(BaseModel):
     updated_at: datetime
 
 
+class OrgSummary(BaseModel):
+    id: str
+    name: str
+    slug: str
+    role: str
+
+
 class OrganizationContext(BaseModel):
     organization: OrganizationRead | None
     membership_role: str | None
     needs_onboarding: bool
     pending_invitation_count: int = 0
+    # Every organization the caller belongs to. Multi-org mode: may have more
+    # than one entry. Single-org mode: the same 0-or-1 elements `organization`
+    # already implies.
+    organizations: list[OrgSummary] = []
+
+
+class SetActiveOrganization(BaseModel):
+    organization_id: str
+
+
+class MyInvitationRead(BaseModel):
+    """A pending invitation addressed to the caller's own email. No token here —
+    tokens are stored one-way hashed (see organization_service.invite) and
+    only ever exist in plaintext in the invitation email itself. Accepting
+    from this list goes through /invitations/{id}/accept-mine instead, which
+    trusts the caller's authenticated email matching the invitation's email —
+    the same check the token-based flow makes, just without needing the token.
+    """
+
+    id: str
+    organization_name: str
+    role: str
+    expires_at: datetime
 
 
 class OrganizationInviteCreate(BaseModel):

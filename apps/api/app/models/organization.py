@@ -3,18 +3,25 @@ from datetime import datetime
 from sqlalchemy import ForeignKey, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
+from app.core.config import settings
 from app.core.db import Base, TimestampMixin, UTCDateTime
 from app.core.security import new_id
 
 
+def _organization_id_default() -> str:
+    # Single-org mode: a fixed primary key makes the single-workspace rule safe
+    # under concurrent first-run requests (a second insert PK-collides instead
+    # of racing to create a second org) — see organization_service.bootstrap().
+    # Multi-org mode: every org needs its own real id.
+    return "organization" if not settings.multi_org_enabled else new_id()
+
+
 class Organization(TimestampMixin, Base):
-    """The single organizer workspace for this Open Session deployment."""
+    """The organizer workspace. One per deployment unless multi_org_enabled."""
 
     __tablename__ = "organizations"
 
-    # A fixed primary key makes the single-workspace rule safe under concurrent
-    # first-run requests as well as in the service layer.
-    id: Mapped[str] = mapped_column(String(32), primary_key=True, default="organization")
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_organization_id_default)
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     slug: Mapped[str] = mapped_column(String(80), nullable=False, unique=True, index=True)
     website_url: Mapped[str | None] = mapped_column(String(500))

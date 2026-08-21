@@ -1,9 +1,11 @@
 import type {
+  MyInvitation,
   Organization,
   OrganizationContext,
   OrganizationInput,
   OrganizationInvitation,
   OrganizationMember,
+  OrgSummary,
 } from "@opensession/schemas";
 import { apiUrl, http } from "../client";
 
@@ -24,6 +26,17 @@ export const organizationApi = {
   accept: (token: string) =>
     http.post<{ organization: Organization; membership_role: string }>(
       `/api/v1/organization/invitations/accept?token=${encodeURIComponent(token)}`,
+    ),
+  // Multi-org mode. Single-org deployments still expose these — `mine`
+  // always returns 0-or-1 entries there — so components can stay
+  // mode-agnostic instead of branching on a separate flag.
+  mine: () => http.get<OrgSummary[]>("/api/v1/organization/mine"),
+  setActive: (organizationId: string) =>
+    http.post<OrganizationContext>("/api/v1/organization/active", { organization_id: organizationId }),
+  myInvitations: () => http.get<MyInvitation[]>("/api/v1/organization/invitations/mine"),
+  acceptMine: (invitationId: string) =>
+    http.post<{ organization: Organization; membership_role: string }>(
+      `/api/v1/organization/invitations/${invitationId}/accept-mine`,
     ),
   uploadLogo: async (file: File) => {
     const response = await fetch(apiUrl("/api/v1/organization/logo"), {

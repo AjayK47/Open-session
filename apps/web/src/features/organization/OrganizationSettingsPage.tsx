@@ -11,6 +11,7 @@ import { Badge, Button, Input, Label, Select, SelectContent, SelectItem, SelectT
 import { toast } from "sonner";
 import { ApiError, apiUrl, organizationApi } from "../../api";
 import { ORGANIZATION_CONTEXT_KEY, useOrganizationContext } from "../../lib/organization";
+import { OrganizationSwitcher } from "../../components/organization-switcher";
 
 type DetailsValues = z.infer<typeof organizationSchema>;
 type InviteValues = z.infer<typeof organizationInviteSchema>;
@@ -53,7 +54,7 @@ export function OrganizationSettingsPage() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <header className="border-b border-border bg-card/70 backdrop-blur"><div className="mx-auto flex h-16 max-w-6xl items-center gap-3 px-6"><Button variant="ghost" size="icon-sm" asChild><Link to="/app/events"><ArrowLeft /></Link></Button><div className="flex min-w-0 items-center gap-2.5"><span className="flex size-8 items-center justify-center rounded-lg bg-primary/10 text-primary"><Building2 className="size-4" /></span><div><p className="truncate text-sm font-semibold">{organization?.name ?? "Organization"}</p><p className="text-[11px] text-muted-foreground">Workspace settings</p></div></div></div></header>
+      <header className="border-b border-border bg-card/70 backdrop-blur"><div className="mx-auto flex h-16 max-w-6xl items-center gap-3 px-6"><Button variant="ghost" size="icon-sm" asChild><Link to="/app/events"><ArrowLeft /></Link></Button><div className="flex min-w-0 items-center gap-2.5"><span className="flex size-8 items-center justify-center rounded-lg bg-primary/10 text-primary"><Building2 className="size-4" /></span><div><p className="truncate text-sm font-semibold">{organization?.name ?? "Organization"}</p><p className="text-[11px] text-muted-foreground">Workspace settings</p></div></div>{(context?.organizations?.length ?? 0) > 1 && <div className="ml-auto w-56"><OrganizationSwitcher currentOrganizationId={context?.organization?.id} currentOrganizationName={context?.organization?.name} organizations={context?.organizations ?? []} /></div>}</div></header>
       <main className="mx-auto max-w-6xl px-6 py-9">
         <div className="flex gap-1 border-b border-border">{([['details','Details',Building2],['team','Team & invitations',UsersRound]] as const).map(([key,label,Icon]) => <button key={key} onClick={() => setTab(key)} className={`flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium ${tab===key?'border-primary text-foreground':'border-transparent text-muted-foreground hover:text-foreground'}`}><Icon className="size-4" />{label}</button>)}</div>
 

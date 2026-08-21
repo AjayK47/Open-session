@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import JSON, Boolean, ForeignKey, Integer, String, Text
+from sqlalchemy import JSON, Boolean, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.db import Base, TimestampMixin, UTCDateTime
@@ -102,7 +102,10 @@ class Person(TimestampMixin, Base):
     __tablename__ = "people"
 
     id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
-    primary_email: Mapped[str] = mapped_column(String(254), nullable=False, unique=True, index=True)
+    # Every organization gets its own contact directory — the same email
+    # address in two different orgs is two distinct Person rows (CRM-01).
+    organization_id: Mapped[str] = mapped_column(ForeignKey("organizations.id"), index=True, nullable=False)
+    primary_email: Mapped[str] = mapped_column(String(254), nullable=False, index=True)
     first_name: Mapped[str | None] = mapped_column(String(120))
     last_name: Mapped[str | None] = mapped_column(String(120))
     bio: Mapped[str | None] = mapped_column(Text)
@@ -117,3 +120,5 @@ class Person(TimestampMixin, Base):
     # separate from EventPerson.custom_fields_json, which is per-event
     # logistics (SPK-15). Tags describe the person across every event.
     tags_json: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
+
+    __table_args__ = (UniqueConstraint("organization_id", "primary_email", name="uq_people_org_email"),)

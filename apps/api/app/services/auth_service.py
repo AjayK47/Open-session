@@ -12,6 +12,7 @@ from app.models.auth import LoginToken, RoleBinding, User
 from app.models.auth import Session as DBSession
 from app.repositories import Repositories
 from app.schemas.auth import AuthUserRead
+from app.services import organization_service, person_service
 
 COOKIE_NAME = "session"
 
@@ -109,16 +110,20 @@ def verify(
 
     token.consumed_at = now
 
-    # Every verified user is backed by a shared Person identity record (§9.2).
-    person = repos.people.upsert_by_email(email, {})
-    # Fill the name only when we do not already have one. Sign-in and sign-up are
-    # the same flow here, so a returning speaker must not have the profile they
-    # curated overwritten by whatever was typed at the login box.
-    if first_name and not person.first_name:
-        person.first_name = first_name.strip() or None
-    if last_name and not person.last_name:
-        person.last_name = last_name.strip() or None
-    user.person_id = person.id
+    # Every verified user is backed by a Person identity record within their
+    # active organization (§9.2). A brand-new multi-org user who hasn't
+    # joined/created an org yet has none to resolve into — person_id simply
+    # stays unset until their first org-scoped action.
+    organization = organization_service.resolve_active(db, user)
+    if organization is not None:
+        person = person_service.resolve_for_user(db, repos, user, organization.id)
+        # Fill the name only when we do not already have one. Sign-in and sign-up
+        # are the same flow here, so a returning speaker must not have the
+        # profile they curated overwritten by whatever was typed at the login box.
+        if first_name and not person.first_name:
+            person.first_name = first_name.strip() or None
+        if last_name and not person.last_name:
+            person.last_name = last_name.strip() or None
 
     db_session = DBSession(user_id=user.id, expires_at=now + timedelta(seconds=settings.session_max_age_seconds))
     db.add(db_session)

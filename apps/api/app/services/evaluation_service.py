@@ -100,10 +100,11 @@ def assign_reviewers(
     `per_reviewer_cap` bounds either one, and `track_ids` narrows the pool to
     submissions on those tracks before anything is dealt.
     """
+    organization_id = repos.events.get(plan.event_id).organization_id
     reviewers = []
     for email in reviewer_emails:
         normalized_email = email.lower().strip()
-        person = repos.people.upsert_by_email(normalized_email, {})
+        person = repos.people.upsert_by_email(organization_id, normalized_email, {})
         user = db.scalar(select(User).where(User.email == normalized_email))
         if user is None:
             user = User(email=normalized_email, person_id=person.id)

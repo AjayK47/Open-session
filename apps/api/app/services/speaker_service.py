@@ -147,7 +147,8 @@ def create_speaker(db: Session, repos: Repositories, event_id: str, payload) -> 
     profile = payload.model_dump(
         exclude={"email", "speaker_status", "confirmation_status", "custom_fields"}, exclude_none=True
     )
-    person = repos.people.upsert_by_email(payload.email.lower(), profile)
+    organization_id = repos.events.get(event_id).organization_id
+    person = repos.people.upsert_by_email(organization_id, payload.email.lower(), profile)
     repos.event_people.upsert(
         event_id,
         person.id,
@@ -229,6 +230,7 @@ def import_speakers_csv(db: Session, repos: Repositories, event_id: str, content
     if "email" not in lookup:
         raise HTTPException(status_code=400, detail="The file needs an 'email' column.")
 
+    organization_id = repos.events.get(event_id).organization_id
     created, updated, errors = 0, 0, []
     for index, row in enumerate(reader, start=2):
         def value(field: str, _row=row) -> str | None:
@@ -257,8 +259,8 @@ def import_speakers_csv(db: Session, repos: Repositories, event_id: str, content
             }.items()
             if v is not None
         }
-        existed = repos.people.get_by_email(email) is not None
-        person = repos.people.upsert_by_email(email, data)
+        existed = repos.people.get_by_email(organization_id, email) is not None
+        person = repos.people.upsert_by_email(organization_id, email, data)
         repos.event_people.upsert(event_id, person.id, {"speaker_status": "invited"})
         _provision_speaker_user(db, event_id, person)
         created += 0 if existed else 1

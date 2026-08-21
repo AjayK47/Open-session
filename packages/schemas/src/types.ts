@@ -42,11 +42,29 @@ export interface Organization {
   updated_at: string;
 }
 
+export interface OrgSummary {
+  id: string;
+  name: string;
+  slug: string;
+  role: "owner" | "admin" | "member";
+}
+
 export interface OrganizationContext {
   organization: Organization | null;
   membership_role: "owner" | "admin" | "member" | null;
   needs_onboarding: boolean;
   pending_invitation_count: number;
+  // Every organization the caller belongs to. Single-org deployments always
+  // have at most one entry — an OrganizationSwitcher can key off this length
+  // alone rather than any separate multi-org flag.
+  organizations: OrgSummary[];
+}
+
+export interface MyInvitation {
+  id: string;
+  organization_name: string;
+  role: string;
+  expires_at: string;
 }
 
 export interface OrganizationInput {

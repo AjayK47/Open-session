@@ -118,19 +118,13 @@ def require_organization_role(*roles: str) -> Callable:
         user: User = Depends(get_current_user),
         db: Session = Depends(get_db),
     ):
-        from app.models.organization import Organization
+        from app.services import organization_service
 
-        organization = db.scalar(select(Organization).order_by(Organization.created_at.asc()).limit(1))
+        organization = organization_service.resolve_active(db, user)
         if organization is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Organization not found")
-        membership = db.scalar(
-            select(OrganizationMembership).where(
-                OrganizationMembership.organization_id == organization.id,
-                OrganizationMembership.user_id == user.id,
-                OrganizationMembership.status == "active",
-            )
-        )
-        if membership is None or membership.role not in set(roles):
+        member = organization_service.membership(db, user.id, organization.id)
+        if member is None or member.role not in set(roles):
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient organization permissions")
         return organization
 

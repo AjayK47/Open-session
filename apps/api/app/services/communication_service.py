@@ -313,8 +313,8 @@ def manual_send(
 
 def manual_recipient_context(repos: Repositories, event_id: str, email: str) -> tuple[dict[str, Any], Any]:
     """Build the shared context used by both preview and the actual bulk send."""
-    person = repos.people.get_by_email(email.lower().strip())
     event = repos.events.get(event_id)
+    person = repos.people.get_by_email(event.organization_id, email.lower().strip()) if event else None
     speaker = {
         "first_name": person.first_name or "" if person else "",
         "last_name": person.last_name or "" if person else "",

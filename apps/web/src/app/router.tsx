@@ -1,4 +1,4 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, type PropsWithChildren } from "react";
 import { Routes, Route, Navigate } from "react-router";
 import { RequireAuth, useAuth } from "../lib/auth";
 import { useOrganizationContext } from "../lib/organization";
@@ -92,6 +92,19 @@ function AuthenticatedRoot() {
   return <Navigate to={data?.needs_onboarding ? "/onboarding" : "/app/events"} replace />;
 }
 
+/**
+ * Guards the organizer app (/app/*) on organization state, not just auth.
+ * Previously only the root path (/) checked needs_onboarding, so a signed-in
+ * org-less user deep-linking straight to e.g. /app/events bypassed onboarding
+ * entirely. Nest inside RequireAuth — this assumes a user is already known.
+ */
+function RequireOrganization({ children }: PropsWithChildren) {
+  const { data, isLoading } = useOrganizationContext();
+  if (isLoading) return <PageLoader />;
+  if (data?.needs_onboarding) return <Navigate to="/onboarding" replace />;
+  return <>{children}</>;
+}
+
 export function AppRouter() {
   return (
     <Suspense fallback={<PageLoader />}>
@@ -100,19 +113,48 @@ export function AppRouter() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/onboarding" element={<RequireAuth redirectTo="/login"><OrganizationOnboardingPage /></RequireAuth>} />
         <Route path="/invitations/accept" element={<RequireAuth redirectTo="/login"><InvitationAcceptPage /></RequireAuth>} />
-        <Route path="/app/organization" element={<RequireAuth redirectTo="/login"><OrganizationSettingsPage /></RequireAuth>} />
+        <Route
+          path="/app/organization"
+          element={
+            <RequireAuth redirectTo="/login">
+              <RequireOrganization>
+                <OrganizationSettingsPage />
+              </RequireOrganization>
+            </RequireAuth>
+          }
+        />
 
         {/* Speaker CRM (CRM-01) — org-level, deliberately outside the
             /app/events/:eventId nesting: a contact here spans every event. */}
-        <Route path="/app/crm" element={<RequireAuth redirectTo="/login"><CrmDirectoryPage /></RequireAuth>} />
-        <Route path="/app/crm/:personId" element={<RequireAuth redirectTo="/login"><CrmContactPage /></RequireAuth>} />
+        <Route
+          path="/app/crm"
+          element={
+            <RequireAuth redirectTo="/login">
+              <RequireOrganization>
+                <CrmDirectoryPage />
+              </RequireOrganization>
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/app/crm/:personId"
+          element={
+            <RequireAuth redirectTo="/login">
+              <RequireOrganization>
+                <CrmContactPage />
+              </RequireOrganization>
+            </RequireAuth>
+          }
+        />
 
         {/* Organizer app */}
         <Route
           path="/app/events"
           element={
             <RequireAuth redirectTo="/login">
-              <EventListPage />
+              <RequireOrganization>
+                <EventListPage />
+              </RequireOrganization>
             </RequireAuth>
           }
         />
@@ -120,7 +162,9 @@ export function AppRouter() {
           path="/app/events/new"
           element={
             <RequireAuth redirectTo="/login">
-              <CreateEventPage />
+              <RequireOrganization>
+                <CreateEventPage />
+              </RequireOrganization>
             </RequireAuth>
           }
         />
@@ -128,7 +172,9 @@ export function AppRouter() {
           path="/app/events/:eventId"
           element={
             <RequireAuth redirectTo="/login">
-              <OrganizerShell />
+              <RequireOrganization>
+                <OrganizerShell />
+              </RequireOrganization>
             </RequireAuth>
           }
         >

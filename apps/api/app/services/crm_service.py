@@ -1,12 +1,13 @@
 """Speaker CRM: an organization-level, cross-event speaker directory.
 
-Deliberately thin. Person is already a global entity (unique by email, no
-event_id column — see app/models/program.py) and EventPerson already tracks
-per-event participation, so the CRM mostly composes existing repositories
-rather than introducing a parallel data model. What's new here is: tags on
-Person (CRM-04), cross-event notes (CRM-03), and the org-level views/actions
-(directory, import, push-to-event, dashboard, bulk email) that read/write
-that shared Person data without ever requiring an event in scope.
+Deliberately thin. Person is already an organization-scoped entity (unique by
+(organization_id, email), no event_id column — see app/models/program.py) and
+EventPerson already tracks per-event participation, so the CRM mostly
+composes existing repositories rather than introducing a parallel data model.
+What's new here is: tags on Person (CRM-04), cross-event notes (CRM-03), and
+the org-level views/actions (directory, import, push-to-event, dashboard,
+bulk email) that read/write that org's Person data without ever requiring an
+event in scope.
 """
 
 import csv
@@ -20,9 +21,9 @@ from app.core.db import utcnow
 from app.email import EmailMessageInput, send_email
 from app.email.templates import branded_email
 from app.models.auth import User
+from app.models.organization import Organization
 from app.models.program import Person
 from app.repositories import Repositories
-from app.services import organization_service
 from app.services.communication_service import render
 from app.services.speaker_service import _provision_speaker_user
 
@@ -63,19 +64,27 @@ def _person_summary(repos: Repositories, person: Person) -> dict[str, Any]:
 
 def list_directory(
     repos: Repositories,
+    organization_id: str,
     search: str | None = None,
     company: str | None = None,
     job_title: str | None = None,
     tag: str | None = None,
 ) -> list[dict[str, Any]]:
-    people = repos.people.list_all(search=search, company=company, job_title=job_title, tag=tag)
+    people = repos.people.list_all(organization_id, search=search, company=company, job_title=job_title, tag=tag)
     return [_person_summary(repos, p) for p in people]
 
 
-def get_profile(repos: Repositories, person_id: str) -> dict[str, Any]:
+def _get_own_person(repos: Repositories, organization_id: str, person_id: str) -> Person:
+    """A directory contact, scoped to the caller's org — never lets one org
+    read/act on another org's Person by guessing/reusing an id."""
     person = repos.people.get(person_id)
-    if person is None:
+    if person is None or person.organization_id != organization_id:
         raise HTTPException(status_code=404, detail="Contact not found")
+    return person
+
+
+def get_profile(repos: Repositories, organization_id: str, person_id: str) -> dict[str, Any]:
+    person = _get_own_person(repos, organization_id, person_id)
     events = repos.event_people.list_for_person(person_id)
     event_rows = []
     for ep in events:
@@ -106,9 +115,10 @@ def get_profile(repos: Repositories, person_id: str) -> dict[str, Any]:
     }
 
 
-def add_note(db: Session, repos: Repositories, person_id: str, author: User, body: str) -> dict[str, Any]:
-    if repos.people.get(person_id) is None:
-        raise HTTPException(status_code=404, detail="Contact not found")
+def add_note(
+    db: Session, repos: Repositories, organization_id: str, person_id: str, author: User, body: str
+) -> dict[str, Any]:
+    _get_own_person(repos, organization_id, person_id)
     author_name = author.email
     if author.person_id:
         author_person = repos.people.get(author.person_id)
@@ -122,17 +132,17 @@ def add_note(db: Session, repos: Repositories, person_id: str, author: User, bod
     return {"id": note.id, "author_name": note.author_name, "body": note.body, "created_at": note.created_at}
 
 
-def set_tags(db: Session, repos: Repositories, person_id: str, tags: list[str]) -> dict[str, Any]:
-    person = repos.people.get(person_id)
-    if person is None:
-        raise HTTPException(status_code=404, detail="Contact not found")
+def set_tags(
+    db: Session, repos: Repositories, organization_id: str, person_id: str, tags: list[str]
+) -> dict[str, Any]:
+    person = _get_own_person(repos, organization_id, person_id)
     cleaned = sorted({t.strip() for t in tags if t.strip()})
     person.tags_json = cleaned
     db.commit()
     return _person_summary(repos, person)
 
 
-def import_csv(db: Session, repos: Repositories, content: bytes) -> dict[str, Any]:
+def import_csv(db: Session, repos: Repositories, organization_id: str, content: bytes) -> dict[str, Any]:
     """Bulk-create/update contacts from a CSV, org-level (CRM-05).
 
     Idempotent on email, same as the per-event speaker import — re-importing
@@ -182,8 +192,8 @@ def import_csv(db: Session, repos: Repositories, content: bytes) -> dict[str, An
             }.items()
             if v is not None
         }
-        existed = repos.people.get_by_email(email.lower()) is not None
-        repos.people.upsert_by_email(email.lower(), data)
+        existed = repos.people.get_by_email(organization_id, email.lower()) is not None
+        repos.people.upsert_by_email(organization_id, email.lower(), data)
         created += 0 if existed else 1
         updated += 1 if existed else 0
 
@@ -191,13 +201,13 @@ def import_csv(db: Session, repos: Repositories, content: bytes) -> dict[str, An
     return {"created": created, "updated": updated, "errors": errors}
 
 
-def push_to_event(db: Session, repos: Repositories, person_id: str, event_id: str) -> dict[str, Any]:
+def push_to_event(
+    db: Session, repos: Repositories, organization_id: str, person_id: str, event_id: str
+) -> dict[str, Any]:
     """Reuse a directory contact on a specific event's speaker roster (CRM-10)."""
-    person = repos.people.get(person_id)
-    if person is None:
-        raise HTTPException(status_code=404, detail="Contact not found")
+    person = _get_own_person(repos, organization_id, person_id)
     event = repos.events.get(event_id)
-    if event is None:
+    if event is None or event.organization_id != organization_id:
         raise HTTPException(status_code=404, detail="Event not found")
     repos.event_people.upsert(event_id, person_id, {"speaker_status": "invited"})
     _provision_speaker_user(db, event_id, person)
@@ -205,10 +215,9 @@ def push_to_event(db: Session, repos: Repositories, person_id: str, event_id: st
     return {"event_id": event_id, "event_name": event.name, **_person_summary(repos, person)}
 
 
-def dashboard(db: Session, repos: Repositories) -> dict[str, Any]:
-    people = repos.people.list_all()
-    organization = organization_service.current(db)
-    events = repos.events.list_by_organization(organization.id) if organization else []
+def dashboard(db: Session, repos: Repositories, organization: Organization) -> dict[str, Any]:
+    people = repos.people.list_all(organization.id)
+    events = repos.events.list_by_organization(organization.id)
     returning = 0
     companies: dict[str, int] = {}
     for person in people:
@@ -226,7 +235,9 @@ def dashboard(db: Session, repos: Repositories) -> dict[str, Any]:
     }
 
 
-def bulk_email(repos: Repositories, person_ids: list[str], subject: str, body_html: str) -> dict[str, Any]:
+def bulk_email(
+    repos: Repositories, organization_id: str, person_ids: list[str], subject: str, body_html: str
+) -> dict[str, Any]:
     """Send a templated email to selected directory contacts (CRM-11).
 
     Sends directly through the same provider-agnostic send_email() the rest
@@ -237,7 +248,7 @@ def bulk_email(repos: Repositories, person_ids: list[str], subject: str, body_ht
     sent, failed = 0, []
     for person_id in person_ids:
         person = repos.people.get(person_id)
-        if person is None or not person.primary_email:
+        if person is None or person.organization_id != organization_id or not person.primary_email:
             failed.append(person_id)
             continue
         context = {

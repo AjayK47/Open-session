@@ -100,21 +100,22 @@ class PersonRepository(ABC):
     def get(self, person_id: str) -> Person | None: ...
 
     @abstractmethod
-    def get_by_email(self, email: str) -> Person | None: ...
+    def get_by_email(self, organization_id: str, email: str) -> Person | None: ...
 
     @abstractmethod
-    def upsert_by_email(self, email: str, data: dict) -> Person: ...
+    def upsert_by_email(self, organization_id: str, email: str, data: dict) -> Person: ...
 
     @abstractmethod
     def list_all(
         self,
+        organization_id: str,
         search: str | None = None,
         company: str | None = None,
         job_title: str | None = None,
         tag: str | None = None,
     ) -> list[Person]:
-        """Every Person in the deployment (CRM-01) — there is one organization,
-        so this is the org-level directory. `search` matches name or email;
+        """Every Person in the given organization (CRM-01) — each organization
+        gets its own directory. `search` matches name or email;
         `company`/`job_title` are exact-match facets; `tag` matches tags_json."""
         ...
 

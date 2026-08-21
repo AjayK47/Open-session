@@ -98,4 +98,4 @@ def test_fresh_cloudflare_schema_is_created_at_current_head(tmp_path):
     assert schema.has_table("organizations")
     with create_engine(database_url).connect() as connection:
         revision = connection.scalar(text("SELECT version_num FROM alembic_version"))
-    assert revision == "0017_refresh_transactional_emails"
+    assert revision == "0019_multi_org"

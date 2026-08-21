@@ -192,14 +192,14 @@ class SqlAlchemyPersonRepository(PersonRepository):
     def get(self, person_id: str) -> Person | None:
         return self.db.get(Person, person_id)
 
-    def get_by_email(self, email: str) -> Person | None:
-        stmt = select(Person).where(Person.primary_email == email)
+    def get_by_email(self, organization_id: str, email: str) -> Person | None:
+        stmt = select(Person).where(Person.organization_id == organization_id, Person.primary_email == email)
         return self.db.scalar(stmt)
 
-    def upsert_by_email(self, email: str, data: dict) -> Person:
-        person = self.get_by_email(email)
+    def upsert_by_email(self, organization_id: str, email: str, data: dict) -> Person:
+        person = self.get_by_email(organization_id, email)
         if person is None:
-            person = Person(primary_email=email, **data)
+            person = Person(organization_id=organization_id, primary_email=email, **data)
             self.db.add(person)
             self.db.flush()
             return person
@@ -210,12 +210,13 @@ class SqlAlchemyPersonRepository(PersonRepository):
 
     def list_all(
         self,
+        organization_id: str,
         search: str | None = None,
         company: str | None = None,
         job_title: str | None = None,
         tag: str | None = None,
     ) -> list[Person]:
-        stmt = select(Person)
+        stmt = select(Person).where(Person.organization_id == organization_id)
         if search:
             like = f"%{search}%"
             name = func.coalesce(Person.first_name, "") + " " + func.coalesce(Person.last_name, "")

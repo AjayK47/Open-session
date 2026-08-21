@@ -16,6 +16,10 @@ class User(Base):
     id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
     person_id: Mapped[str | None] = mapped_column(String(32))
     email: Mapped[str] = mapped_column(String(254), nullable=False, unique=True, index=True)
+    # Multi-org mode only: which of the user's organizations is currently
+    # active. Unused (always None) in single-org mode. See
+    # organization_service.resolve_active().
+    active_organization_id: Mapped[str | None] = mapped_column(String(32))
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow, nullable=False)
 
 

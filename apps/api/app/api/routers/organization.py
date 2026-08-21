@@ -8,6 +8,7 @@ from app.core.db import get_db
 from app.models.auth import User
 from app.models.organization import Organization
 from app.schemas.organization import (
+    MyInvitationRead,
     OrganizationContext,
     OrganizationCreate,
     OrganizationInvitationRead,
@@ -15,6 +16,8 @@ from app.schemas.organization import (
     OrganizationMemberRead,
     OrganizationRead,
     OrganizationUpdate,
+    OrgSummary,
+    SetActiveOrganization,
 )
 from app.services import organization_service
 
@@ -39,14 +42,56 @@ def _read(organization: Organization) -> dict:
 
 @router.get("/context", response_model=OrganizationContext)
 def context(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    organization = organization_service.current(db)
+    organization = organization_service.resolve_active(db, user)
     member = organization_service.membership(db, user.id, organization.id) if organization else None
+    mine = organization_service.list_my_organizations(db, user)
     return {
         "organization": _read(organization) if organization and member else None,
         "membership_role": member.role if member else None,
         "needs_onboarding": organization is None,
         "pending_invitation_count": organization_service.pending_invitation_count(db, user.email),
+        "organizations": [
+            OrgSummary(id=org.id, name=org.name, slug=org.slug, role=m.role) for org, m in mine
+        ],
     }
+
+
+@router.get("/mine", response_model=list[OrgSummary])
+def list_mine(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    return [
+        OrgSummary(id=org.id, name=org.name, slug=org.slug, role=m.role)
+        for org, m in organization_service.list_my_organizations(db, user)
+    ]
+
+
+@router.post("/active", response_model=OrganizationContext)
+def set_active_organization(
+    body: SetActiveOrganization,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    organization_service.set_active(db, user, body.organization_id)
+    return context(user, db)
+
+
+@router.get("/invitations/mine", response_model=list[MyInvitationRead])
+def list_my_invitations(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    rows = organization_service.list_my_pending_invitations(db, user)
+    return [
+        MyInvitationRead(id=inv.id, organization_name=org.name, role=inv.role, expires_at=inv.expires_at)
+        for inv, org in rows
+    ]
+
+
+@router.post("/invitations/{invitation_id}/accept-mine")
+def accept_my_invitation(
+    invitation_id: str,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    member = organization_service.accept_invitation_by_id(db, user, invitation_id)
+    organization = db.get(Organization, member.organization_id)
+    return {"organization": _read(organization), "membership_role": member.role}
 
 
 @router.post("", response_model=OrganizationRead, status_code=201)

@@ -17,7 +17,7 @@ from app.models.program import Event
 from app.repositories import Repositories
 from app.rules.engine import apply_routing, evaluate_conditional_rules, required_fields, visible_field_keys
 from app.schemas.submissions import ParticipantRead, SubmissionRead, SubmissionWrite
-from app.services import communication_service, evaluation_service, session_service, task_service
+from app.services import communication_service, evaluation_service, person_service, session_service, task_service
 
 SUBMISSION_DECISIONS = {
     "pending_review",
@@ -225,7 +225,9 @@ def _submitter_first(
     return _with_submitter(form, person, participants)
 
 
-def _set_participants(db: Session, repos: Repositories, submission_id: str, participants: list) -> None:
+def _set_participants(db: Session, repos: Repositories, submission: Submission, participants: list) -> None:
+    submission_id = submission.id
+    organization_id = repos.events.get(submission.event_id).organization_id
     repos.submission_participants.delete_for_submission(submission_id)
     for idx, participant in enumerate(participants):
         if isinstance(participant, dict):
@@ -243,7 +245,7 @@ def _set_participants(db: Session, repos: Repositories, submission_id: str, part
             }.items()
             if v is not None
         }
-        person = repos.people.upsert_by_email(participant.email, data)
+        person = repos.people.upsert_by_email(organization_id, participant.email, data)
         repos.submission_participants.create(
             submission_id, {"person_id": person.id, "role": participant.role, "sort_order": idx}
         )
@@ -328,8 +330,8 @@ def create_draft(
     if not open_now:
         raise HTTPException(status_code=400, detail=reason)
 
-    person = repos.people.upsert_by_email(user.email, {})
-    user.person_id = person.id
+    organization_id = repos.events.get(form.event_id).organization_id
+    person = person_service.resolve_for_user(db, repos, user, organization_id)
 
     submission = repos.submissions.create(
         {
@@ -353,7 +355,7 @@ def create_draft(
         }
     )
     set_tracks(db, repos, submission, payload.track_ids)
-    _set_participants(db, repos, submission.id, _with_submitter(form, person, payload.participants))
+    _set_participants(db, repos, submission, _with_submitter(form, person, payload.participants))
     db.commit()
     return submission
 
@@ -370,7 +372,7 @@ def update_draft(
     _apply_payload(submission, payload, db, repos)
     # The wizard resends the whole participant list on every step, so the
     # submitter has to be re-seeded here too or the first save drops them.
-    _set_participants(db, repos, submission.id, _submitter_first(repos, submission, payload.participants, form))
+    _set_participants(db, repos, submission, _submitter_first(repos, submission, payload.participants, form))
     db.commit()
     return submission
 
@@ -385,7 +387,7 @@ def submit(
         raise HTTPException(status_code=409, detail="This submission has already been submitted.")
 
     _apply_payload(submission, payload, db, repos)
-    _set_participants(db, repos, submission.id, _submitter_first(repos, submission, payload.participants, form))
+    _set_participants(db, repos, submission, _submitter_first(repos, submission, payload.participants, form))
 
     errors = validate_submission(form, submission, repos)
     if errors:
@@ -567,7 +569,7 @@ def create_manual(db: Session, repos: Repositories, event_id: str, payload) -> S
         }
     )
     set_tracks(db, repos, submission, getattr(payload, "track_ids", None))
-    _set_participants(db, repos, submission.id, payload.participants or [])
+    _set_participants(db, repos, submission, payload.participants or [])
     db.add(
         AuditEvent(
             event_id=event_id,
@@ -599,7 +601,7 @@ def update_submission(db: Session, repos: Repositories, submission_id: str, payl
     if track_ids is not None:
         set_tracks(db, repos, submission, track_ids)
     if payload.participants:
-        _set_participants(db, repos, submission.id, payload.participants)
+        _set_participants(db, repos, submission, payload.participants)
     db.commit()
     return submission
 
@@ -649,7 +651,7 @@ def update_speaker_submission(
     }
     _apply_payload(submission, payload, db, repos)
     if payload.participants:
-        _set_participants(db, repos, submission.id, payload.participants)
+        _set_participants(db, repos, submission, payload.participants)
     if form:
         errors = validate_submission(form, submission, repos)
         if errors:

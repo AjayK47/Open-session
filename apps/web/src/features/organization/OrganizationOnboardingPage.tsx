@@ -1,18 +1,58 @@
 import { useEffect, useRef, useState } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "react-router";
 import { organizationSchema } from "@opensession/schemas";
 import type { OrganizationInput } from "@opensession/schemas";
 import type { z } from "zod";
-import { ArrowRight, Building2, Check, ImagePlus, LogOut, Megaphone } from "lucide-react";
+import { ArrowRight, Building2, Check, ImagePlus, LogOut, MailCheck, Megaphone } from "lucide-react";
 import { Button, IconChip, Input, Label, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Textarea } from "@opensession/ui";
 import { toast } from "sonner";
 import { organizationApi, ApiError } from "../../api";
 import { useAuth } from "../../lib/auth";
 import { ORGANIZATION_CONTEXT_KEY, useOrganizationContext } from "../../lib/organization";
 import { TIMEZONES } from "../../lib/timezones";
+
+function PendingInvitations({ onAccepted }: { onAccepted: () => void }) {
+  const { data: invitations = [] } = useQuery({
+    queryKey: ["organization", "invitations", "mine"],
+    queryFn: organizationApi.myInvitations,
+  });
+  const accept = useMutation({
+    mutationFn: (invitationId: string) => organizationApi.acceptMine(invitationId),
+    onSuccess: () => { toast.success("Invitation accepted"); onAccepted(); },
+    onError: (error) => toast.error(error instanceof ApiError ? error.message2 : "Could not accept invitation"),
+  });
+
+  if (invitations.length === 0) return null;
+
+  return (
+    <div className="mb-8 rounded-2xl border border-primary/20 bg-primary/[.035] p-5">
+      <div className="flex items-center gap-2.5">
+        <IconChip tone="brand" size="sm"><MailCheck /></IconChip>
+        <div>
+          <h2 className="text-sm font-semibold text-foreground">You have a pending invitation</h2>
+          <p className="text-xs text-muted-foreground">Join an existing organization instead of starting a new one.</p>
+        </div>
+      </div>
+      <ul className="mt-4 space-y-2">
+        {invitations.map((invitation) => (
+          <li key={invitation.id} className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 py-3">
+            <div className="min-w-0">
+              <p className="truncate text-sm font-medium text-foreground">{invitation.organization_name}</p>
+              <p className="text-xs capitalize text-muted-foreground">as {invitation.role}</p>
+            </div>
+            <Button size="sm" onClick={() => accept.mutate(invitation.id)} disabled={accept.isPending}>
+              {accept.isPending ? "Joining…" : "Accept"}
+            </Button>
+          </li>
+        ))}
+      </ul>
+      <p className="mt-4 text-xs text-muted-foreground">Or create your own organization below.</p>
+    </div>
+  );
+}
 
 type Values = z.infer<typeof organizationSchema>;
 
@@ -128,7 +168,16 @@ export function OrganizationOnboardingPage() {
       </aside>
 
       <main className="flex items-center justify-center overflow-y-auto px-6 py-8 sm:px-10">
-        <form onSubmit={form.handleSubmit(submit)} className="w-full max-w-2xl">
+        <div className="w-full max-w-2xl">
+        {(context?.pending_invitation_count ?? 0) > 0 && (
+          <PendingInvitations
+            onAccepted={() => {
+              void queryClient.invalidateQueries({ queryKey: ORGANIZATION_CONTEXT_KEY });
+              navigate("/app/events", { replace: true });
+            }}
+          />
+        )}
+        <form onSubmit={form.handleSubmit(submit)} className="w-full">
           <div className="mb-6"><span className="flex size-11 items-center justify-center rounded-xl bg-primary/10 text-primary"><Building2 className="size-5" /></span><h2 className="mt-4 text-3xl font-semibold tracking-tight">Create your organization</h2><p className="mt-2 text-sm leading-6 text-muted-foreground">This is the home for your team and every event you run.</p></div>
 
           <div className="grid gap-5 sm:grid-cols-[9rem_1fr]">
@@ -171,6 +220,7 @@ export function OrganizationOnboardingPage() {
 
           <div className="mt-6 flex items-center justify-end border-t border-border pt-5"><Button size="lg" type="submit" disabled={form.formState.isSubmitting}>{form.formState.isSubmitting ? "Creating…" : <>Create workspace <ArrowRight /></>}</Button></div>
         </form>
+        </div>
       </main>
     </div>
   );

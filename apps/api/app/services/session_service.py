@@ -217,16 +217,19 @@ def create_manual(db: Session, repos: Repositories, event_id: str, payload) -> P
             "status": "confirmed",
         }
     )
-    _set_participants(db, repos, session.id, payload.participants or [])
+    _set_participants(db, repos, session, payload.participants or [])
     db.commit()
     return session
 
 
-def _set_participants(db: Session, repos: Repositories, session_id: str, participants: list) -> None:
+def _set_participants(db: Session, repos: Repositories, session: ProgramSession, participants: list) -> None:
+    session_id = session.id
+    organization_id = repos.events.get(session.event_id).organization_id
     repos.session_participants.delete_for_session(session_id)
     for idx, participant in enumerate(participants):
         data = participant if isinstance(participant, dict) else participant.model_dump()
         person = repos.people.upsert_by_email(
+            organization_id,
             data["email"],
             {
                 k: v
@@ -313,7 +316,7 @@ def update_session(
 
     session = repos.sessions.update(session_id, patch)
     if participants is not None:
-        _set_participants(db, repos, session.id, participants)
+        _set_participants(db, repos, session, participants)
     db.commit()
     return session
 

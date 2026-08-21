@@ -14,8 +14,10 @@ import {
 import { NAV_GROUPS } from "./nav-config";
 import { CurrentEventProvider, useCurrentEvent } from "../lib/current-event";
 import { useAuth } from "../lib/auth";
+import { useOrganizationContext } from "../lib/organization";
 import { CommandPalette } from "../components/command-palette";
 import { EventSwitcher } from "../components/event-switcher";
+import { OrganizationSwitcher } from "../components/organization-switcher";
 import { ThemeToggle } from "../components/theme-toggle";
 
 /**
@@ -49,12 +51,23 @@ function EventUnavailable() {
 function ShellInner() {
   const { event, eventId, isLoading, isUnavailable } = useCurrentEvent();
   const { user, logout } = useAuth();
+  const { data: orgContext } = useOrganizationContext();
 
   const initials = (user?.email ?? "?").slice(0, 2).toUpperCase();
+  const organizations = orgContext?.organizations ?? [];
 
   return (
     <div className="flex h-screen overflow-hidden bg-background text-foreground">
       <aside className="flex w-[17.5rem] shrink-0 flex-col border-r border-sidebar-border bg-sidebar">
+        {organizations.length > 1 ? (
+          <div className="flex h-9 items-center gap-2 border-b border-sidebar-border/70 px-3">
+            <OrganizationSwitcher
+              currentOrganizationId={orgContext?.organization?.id}
+              currentOrganizationName={orgContext?.organization?.name}
+              organizations={organizations}
+            />
+          </div>
+        ) : null}
         <div className="flex h-14 items-center gap-2 px-3">
           <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground shadow-xs">
             <Megaphone className="size-4" />

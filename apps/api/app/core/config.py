@@ -19,6 +19,12 @@ class Settings(BaseSettings):
     evaluation_reviewer_email: str = "sbek-reviewer@example.com"
     evaluation_event_slug: str = "devflow-conf-2027"
 
+    # Off by default = today's exact single-workspace-per-deployment behavior
+    # (first signup becomes owner, everyone else needs an invite). On: any
+    # unaffiliated user may self-serve their own organization, and users can
+    # belong to and switch between several.
+    multi_org_enabled: bool = False
+
     # Optional real-model submission review. Disabled unless deliberately
     # configured; the API key is server-only.
     ai_review_enabled: bool = False

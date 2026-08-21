@@ -29,7 +29,8 @@ def add_member(db: Session, repos: Repositories, event_id: str, email: str, role
         user = User(email=email)
         db.add(user)
         db.flush()
-    person = repos.people.upsert_by_email(email, {})
+    organization_id = repos.events.get(event_id).organization_id
+    person = repos.people.upsert_by_email(organization_id, email, {})
     user.person_id = person.id
 
     binding = db.scalar(select(RoleBinding).where(RoleBinding.user_id == user.id, RoleBinding.event_id == event_id))
